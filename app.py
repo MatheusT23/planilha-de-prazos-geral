@@ -23,6 +23,17 @@ def _load_tables():
     return df1, df2, df3
 
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
+# Reduz espaço do cabeçalho para mostrar mais conteúdo principal
+st.markdown(
+    """
+    <style>
+        div.block-container {
+            padding-top: 1rem;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 st.title("Planilha de Prazos Geral")
 
 # ----- Sidebar: ingestão opcional -----
