@@ -34,11 +34,10 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.title("Planilha de Prazos Geral")
+st.title("Planilha de Prazos Geral 📗")
 
 # ----- Sidebar: ingestão opcional -----
 st.divider()
-st.subheader("📊 Tabelas (visualização + edição por formulário)")
 
 # Botões principais: Atualizar e Buscar Novos Dados
 col_refresh, col_fetch = st.columns([1,1])
