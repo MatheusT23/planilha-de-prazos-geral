@@ -15,6 +15,13 @@ from sqlalchemy.orm import Session
 
 from db import engine, SessionLocal, Andamento, Publicacao, Agenda
 
+@st.cache_data(show_spinner=False)
+def _load_tables():
+    df1 = pd.read_sql("select * from andamentos order by created_at desc", engine)
+    df2 = pd.read_sql("select * from publicacoes order by created_at desc", engine)
+    df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
+    return df1, df2, df3
+
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
 st.title("Planilha de Prazos Geral")
 
@@ -63,13 +70,6 @@ if 'buscar' in locals() and buscar:
             st.error("Função 'buscar_e_processar_emails' não encontrada no script.")
     except Exception as e:
         st.exception(e)
-
-@st.cache_data(show_spinner=False)
-def _load_tables():
-    df1 = pd.read_sql("select * from andamentos order by created_at desc", engine)
-    df2 = pd.read_sql("select * from publicacoes order by created_at desc", engine)
-    df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
-    return df1, df2, df3
 
 if refresh or "dfs_forms" not in st.session_state:
     _load_tables.clear()
