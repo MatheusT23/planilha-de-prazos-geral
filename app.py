@@ -111,6 +111,13 @@ def _save_row(model, rec_id: Optional[int], values: Dict[str, Any]):
             db.add(model(**values))
         db.commit()
 
+def _delete_row(model, rec_id: Optional[int]):
+    if rec_id is None:
+        return
+    with SessionLocal() as db:
+        db.query(model).filter(model.id == rec_id).delete()
+        db.commit()
+
 def _reload():
     try:
         _load_tables.clear()
@@ -145,8 +152,11 @@ with tab1:
             col_h = st.text_input("col_h", value=_text(row["col_h"]) if row is not None else "")
             col_i = st.text_input("col_i", value=_text(row["col_i"]) if row is not None else "")
             observacoes = st.text_area("observacoes", value=_text(row["observacoes"]) if row is not None else "", height=120)
-
-            submitted = st.form_submit_button("💾 Salvar ANDAMENTO", use_container_width=True)
+            col_save, col_del = st.columns([3, 1])
+            with col_save:
+                submitted = st.form_submit_button("💾 Salvar ANDAMENTO", use_container_width=True)
+            with col_del:
+                deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
                     "data": data,
@@ -162,6 +172,10 @@ with tab1:
                 }
                 _save_row(Andamento, target, values)
                 st.success("Salvo com sucesso.")
+                _reload()
+            if deleted and target is not None:
+                _delete_row(Andamento, target)
+                st.success("Excluído com sucesso.")
                 _reload()
 
 # ---------- PUBLICAÇÕES ----------
@@ -190,8 +204,11 @@ with tab2:
             col_h = st.text_input("col_h", value=_text(row["col_h"]) if row is not None else "")
             col_i = st.text_input("col_i", value=_text(row["col_i"]) if row is not None else "")
             observacoes = st.text_area("observacoes", value=_text(row["observacoes"]) if row is not None else "", height=120)
-
-            submitted = st.form_submit_button("💾 Salvar PUBLICAÇÃO", use_container_width=True)
+            col_save, col_del = st.columns([3, 1])
+            with col_save:
+                submitted = st.form_submit_button("💾 Salvar PUBLICAÇÃO", use_container_width=True)
+            with col_del:
+                deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
                     "data": data,
@@ -207,6 +224,10 @@ with tab2:
                 }
                 _save_row(Publicacao, target, values)
                 st.success("Salvo com sucesso.")
+                _reload()
+            if deleted and target is not None:
+                _delete_row(Publicacao, target)
+                st.success("Excluído com sucesso.")
                 _reload()
 
 # ---------- AGENDA ----------
@@ -238,8 +259,11 @@ with tab3:
             materia = st.text_input("materia", value=_text(row["materia"]) if row is not None else "")
             parte_adversa = st.text_input("parte_adversa", value=_text(row["parte_adversa"]) if row is not None else "")
             sistema = st.text_input("sistema", value=_text(row["sistema"]) if row is not None else "")
-
-            submitted = st.form_submit_button("💾 Salvar AGENDA", use_container_width=True)
+            col_save, col_del = st.columns([3, 1])
+            with col_save:
+                submitted = st.form_submit_button("💾 Salvar AGENDA", use_container_width=True)
+            with col_del:
+                deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
                     "idx": int(idx) if idx and idx.strip().isdigit() else None,
@@ -258,6 +282,10 @@ with tab3:
                 }
                 _save_row(Agenda, target, values)
                 st.success("Salvo com sucesso.")
+                _reload()
+            if deleted and target is not None:
+                _delete_row(Agenda, target)
+                st.success("Excluído com sucesso.")
                 _reload()
 
 st.caption("Dica: o modo formulário evita o rerun a cada tecla; os dados só mudam ao clicar Salvar.")
