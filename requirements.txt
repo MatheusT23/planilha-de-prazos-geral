@@ -1,0 +1,7 @@
+streamlit
+pandas
+sqlalchemy
+psycopg2-binary
+beautifulsoup4
+openpyxl
+streamlit-aggrid
