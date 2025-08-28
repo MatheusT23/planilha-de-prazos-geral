@@ -136,20 +136,12 @@ def _reload():
     st.session_state["dfs_forms"] = _load_tables()
 
 
-def _format_dates_for_display(df: pd.DataFrame) -> pd.DataFrame:
-    df2 = df.copy()
-    for col in df2.columns:
-        if pd.api.types.is_datetime64_any_dtype(df2[col]):
-            df2[col] = pd.to_datetime(df2[col], errors="coerce").dt.strftime("%d-%m-%y")
-    return df2
-
-
 # ---------- ANDAMENTOS ----------
 with tab1:
     left, right = st.columns([1.7, 1])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(_format_dates_for_display(df1), use_container_width=True, height=1000)
+        st.dataframe(df1, use_container_width=True, height=1000)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df1["id"].tolist() if "id" in df1.columns else []
@@ -160,7 +152,7 @@ with tab1:
         row = _row_by_id(df1, target)
 
         with st.form("form_andamentos", clear_on_submit=False):
-            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None, format="DD-MM-YY")
+            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
             col_b = st.text_input("col_b", value=_text(row["col_b"]) if row is not None else "")
             col_c = st.text_input("col_c", value=_text(row["col_c"]) if row is not None else "")
             status_assunto = st.text_input("status_assunto", value=_text(row["status_assunto"]) if row is not None else "")
@@ -201,7 +193,7 @@ with tab2:
     left, right = st.columns([1.7, 1])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(_format_dates_for_display(df2), use_container_width=True, height=1000)
+        st.dataframe(df2, use_container_width=True, height=1000)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df2["id"].tolist() if "id" in df2.columns else []
@@ -212,7 +204,7 @@ with tab2:
         row = _row_by_id(df2, target)
 
         with st.form("form_publicacoes", clear_on_submit=False):
-            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None, format="DD-MM-YY")
+            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
             col_b = st.text_input("col_b", value=_text(row["col_b"]) if row is not None else "")
             col_c = st.text_input("col_c", value=_text(row["col_c"]) if row is not None else "")
             col_d = st.text_input("col_d", value=_text(row["col_d"]) if row is not None else "")
@@ -253,7 +245,7 @@ with tab3:
     left, right = st.columns([1.7, 1])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(_format_dates_for_display(df3), use_container_width=True, height=1000)
+        st.dataframe(df3, use_container_width=True, height=1000)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df3["id"].tolist() if "id" in df3.columns else []
@@ -265,7 +257,7 @@ with tab3:
 
         with st.form("form_agenda", clear_on_submit=False):
             idx = st.text_input("idx", value=_text(row["idx"]) if row is not None else "")
-            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None, format="DD-MM-YY")
+            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
             horario = st.text_input("horario", value=_text(row["horario"]) if row is not None else "")
             status = st.text_input("status", value=_text(row["status"]) if row is not None else "")
             cliente = st.text_input("cliente", value=_text(row["cliente"]) if row is not None else "")
