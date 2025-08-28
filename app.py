@@ -138,7 +138,7 @@ def _reload():
 
 # ---------- ANDAMENTOS ----------
 with tab1:
-    left, right = st.columns([1.7, 1])
+    left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
         st.dataframe(df1, use_container_width=True, height=1000)
@@ -190,7 +190,7 @@ with tab1:
 
 # ---------- PUBLICAÇÕES ----------
 with tab2:
-    left, right = st.columns([1.7, 1])
+    left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
         st.dataframe(df2, use_container_width=True, height=1000)
@@ -242,7 +242,7 @@ with tab2:
 
 # ---------- AGENDA ----------
 with tab3:
-    left, right = st.columns([1.7, 1])
+    left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
         st.dataframe(df3, use_container_width=True, height=1000)
