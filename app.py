@@ -14,8 +14,17 @@ import pandas as pd
 from sqlalchemy import text, inspect
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError
+from datetime import timezone, timedelta
 
-from db import engine, SessionLocal, Andamento, Publicacao, Agenda, Concluida
+from db import (
+    engine,
+    SessionLocal,
+    Andamento,
+    Publicacao,
+    Agenda,
+    Concluida,
+    LastChecked,
+)
 
 @st.cache_data(show_spinner=False)
 def _load_tables():
@@ -47,14 +56,32 @@ if "__last_msg" in st.session_state:
 # ----- Sidebar: ingestão opcional -----
 st.divider()
 
-# Botões principais: Atualizar e Buscar Novos Dados
-col_refresh, col_fetch = st.columns([1,1])
-with col_refresh:
-    refresh = st.button("🔄 Atualizar", use_container_width=True)
-with col_fetch:
-    buscar = st.button("🛰️ Buscar Novos Dados", use_container_width=True)
+# Botões principais: Atualizar Tabela e Buscar Novos Emails
 
-# Executa o scrap_email.py fixo quando clicar em Buscar Novos Dados
+
+def _last_email_update() -> Optional[str]:
+    """Retorna a data/hora da última atualização de e-mails em fuso -03:00."""
+    with SessionLocal() as db:
+        rec = db.query(LastChecked).first()
+        if rec and rec.checked_at:
+            try:
+                dt = rec.checked_at.astimezone(timezone(timedelta(hours=-3)))
+            except Exception:
+                dt = rec.checked_at
+            return dt.strftime("%d/%m/%Y %H:%M")
+    return None
+
+
+last_email_checked = _last_email_update() or "Nunca"
+
+refresh = st.button("🔄 Atualizar Tabela")
+col_btn, col_info = st.columns([1, 4])
+with col_btn:
+    buscar = st.button("🛰️ Buscar Novos Emails")
+with col_info:
+    st.text(f"Última Atualização de Emails: {last_email_checked}")
+
+# Executa o scrap_email.py fixo quando clicar em Buscar Novos Emails
 if 'buscar' in locals() and buscar:
     try:
         # caminho fixo do script
