@@ -1,16 +1,17 @@
 CREATE TABLE concluidas (
     id BIGSERIAL PRIMARY KEY,
-    data DATE,
-    col_b TEXT,
-    col_c TEXT,
-    status_assunto TEXT,
+    d DATE,
+    inicio_prazo DATE,
+    fim_prazo DATE,
+    dias_restantes INTEGER,
+    setor TEXT,
     cliente TEXT,
-    numero_processo TEXT,
-    col_g TEXT,
-    col_h TEXT,
-    col_i TEXT,
+    processo TEXT,
+    para_ramon_e_adriana_despacharem TEXT,
+    status TEXT,
+    resposta_do_colaborador TEXT,
     observacoes TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_concluidas_numero_processo ON concluidas (numero_processo);
+CREATE INDEX idx_concluidas_processo ON concluidas (processo);

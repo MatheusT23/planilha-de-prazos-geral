@@ -491,32 +491,34 @@ def extrair_nomes_do_corpo(texto: str) -> str:
 
 
 # ====== Persistência no DB ======
-def add_andamento(session, data_str, valor_coluna_c, nomes_clientes, numero_processo, eventos_limpos):
+def add_andamento(session, data_str, setor, nomes_clientes, numero_processo, eventos_limpos):
     rec = Andamento(
-        data=to_date_or_none(data_str),
-        col_b="",
-        col_c="",
-        status_assunto=valor_coluna_c or "",
+        d=to_date_or_none(data_str),
+        inicio_prazo=None,
+        fim_prazo=None,
+        dias_restantes=None,
+        setor=setor or "",
         cliente=nomes_clientes or "",
-        numero_processo=numero_processo or "",
-        col_g="",
-        col_h="",
-        col_i="",
+        processo=numero_processo or "",
+        para_ramon_e_adriana_despacharem="",
+        status="Em Andamento",
+        resposta_do_colaborador="",
         observacoes=eventos_limpos or "",
     )
     session.add(rec)
 
 def add_publicacao(session, data_pub, nome_cliente, processo, evento_texto):
     rec = Publicacao(
-        data=to_date_or_none(data_pub),
-        col_b="",
-        col_c="",
-        col_d="",
+        d=to_date_or_none(data_pub),
+        inicio_prazo=None,
+        fim_prazo=None,
+        dias_restantes=None,
+        setor="",
         cliente=nome_cliente or "",
-        numero_processo=processo or "",
-        col_g="",
-        col_h="",
-        col_i="",
+        processo=processo or "",
+        para_ramon_e_adriana_despacharem="",
+        status="Em Andamento",
+        resposta_do_colaborador="",
         observacoes=evento_texto or "",
     )
     session.add(rec)
