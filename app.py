@@ -138,15 +138,16 @@ def _move_to_concluidas(model, rec_id: Optional[int]):
         if rec is None:
             return
         values = {
-            "data": getattr(rec, "data", None),
-            "col_b": getattr(rec, "col_b", None) or getattr(rec, "horario", None),
-            "col_c": getattr(rec, "col_c", None) or getattr(rec, "cliente_avisado", None),
-            "status_assunto": getattr(rec, "status_assunto", None) or getattr(rec, "col_d", None) or getattr(rec, "status", None),
+            "d": getattr(rec, "d", None) or getattr(rec, "data", None),
+            "inicio_prazo": getattr(rec, "inicio_prazo", None),
+            "fim_prazo": getattr(rec, "fim_prazo", None),
+            "dias_restantes": getattr(rec, "dias_restantes", None),
+            "setor": getattr(rec, "setor", None) or getattr(rec, "horario", None),
             "cliente": getattr(rec, "cliente", None),
-            "numero_processo": getattr(rec, "numero_processo", None),
-            "col_g": getattr(rec, "col_g", None) or getattr(rec, "anotado_na_agenda", None) or getattr(rec, "tipo_audiencia_pericia", None),
-            "col_h": getattr(rec, "col_h", None) or getattr(rec, "materia", None),
-            "col_i": getattr(rec, "col_i", None) or getattr(rec, "parte_adversa", None),
+            "processo": getattr(rec, "processo", None) or getattr(rec, "numero_processo", None),
+            "para_ramon_e_adriana_despacharem": getattr(rec, "para_ramon_e_adriana_despacharem", None) or getattr(rec, "anotado_na_agenda", None),
+            "status": getattr(rec, "status", None),
+            "resposta_do_colaborador": getattr(rec, "resposta_do_colaborador", None) or getattr(rec, "cliente_avisado", None),
             "observacoes": getattr(rec, "observacoes", None) or getattr(rec, "observacao", None),
         }
         db.add(Concluida(**values))
@@ -177,16 +178,37 @@ with tab1:
         row = _row_by_id(df1, target)
 
         with st.form("form_andamentos", clear_on_submit=False):
-            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
-            col_b = st.text_input("col_b", value=_text(row["col_b"]) if row is not None else "")
-            col_c = st.text_input("col_c", value=_text(row["col_c"]) if row is not None else "")
-            status_assunto = st.text_input("status_assunto", value=_text(row["status_assunto"]) if row is not None else "")
+            d = st.date_input("d", value=_to_date(row["d"]) if row is not None else None)
+            inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
+            fim_prazo = st.date_input("fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None)
+            dias_restantes = st.number_input(
+                "dias_restantes",
+                value=int(row["dias_restantes"]) if row is not None and not pd.isna(row["dias_restantes"]) else 0,
+                step=1,
+            )
+            setor = st.text_input("setor", value=_text(row["setor"]) if row is not None else "")
             cliente = st.text_input("cliente", value=_text(row["cliente"]) if row is not None else "")
-            numero_processo = st.text_input("numero_processo", value=_text(row["numero_processo"]) if row is not None else "")
-            col_g = st.text_input("col_g", value=_text(row["col_g"]) if row is not None else "")
-            col_h = st.text_input("col_h", value=_text(row["col_h"]) if row is not None else "")
-            col_i = st.text_input("col_i", value=_text(row["col_i"]) if row is not None else "")
-            observacoes = st.text_area("observacoes", value=_text(row["observacoes"]) if row is not None else "", height=120)
+            processo = st.text_input("processo", value=_text(row["processo"]) if row is not None else "")
+            para_ramon_e_adriana_despacharem = st.text_input(
+                "para_ramon_e_adriana_despacharem",
+                value=_text(row["para_ramon_e_adriana_despacharem"]) if row is not None else "",
+            )
+            status_options = ["Em Andamento", "Teste 1", "Teste 2"]
+            status_index = (
+                status_options.index(row["status"])
+                if row is not None and row["status"] in status_options
+                else 0
+            )
+            status = st.selectbox("status", status_options, index=status_index)
+            resposta_do_colaborador = st.text_input(
+                "resposta_do_colaborador",
+                value=_text(row["resposta_do_colaborador"]) if row is not None else "",
+            )
+            observacoes = st.text_area(
+                "observacoes",
+                value=_text(row["observacoes"]) if row is not None else "",
+                height=120,
+            )
             col_save, col_del, col_done = st.columns([2.5, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar ANDAMENTO", use_container_width=True)
@@ -196,15 +218,16 @@ with tab1:
                 concluded = st.form_submit_button("Concluído", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
-                    "data": data,
-                    "col_b": col_b or None,
-                    "col_c": col_c or None,
-                    "status_assunto": status_assunto or None,
+                    "d": d,
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": setor or None,
                     "cliente": cliente or None,
-                    "numero_processo": numero_processo or None,
-                    "col_g": col_g or None,
-                    "col_h": col_h or None,
-                    "col_i": col_i or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
                     "observacoes": observacoes or None,
                 }
                 _save_row(Andamento, target, values)
@@ -235,16 +258,37 @@ with tab2:
         row = _row_by_id(df2, target)
 
         with st.form("form_publicacoes", clear_on_submit=False):
-            data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
-            col_b = st.text_input("col_b", value=_text(row["col_b"]) if row is not None else "")
-            col_c = st.text_input("col_c", value=_text(row["col_c"]) if row is not None else "")
-            col_d = st.text_input("col_d", value=_text(row["col_d"]) if row is not None else "")
+            d = st.date_input("d", value=_to_date(row["d"]) if row is not None else None)
+            inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
+            fim_prazo = st.date_input("fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None)
+            dias_restantes = st.number_input(
+                "dias_restantes",
+                value=int(row["dias_restantes"]) if row is not None and not pd.isna(row["dias_restantes"]) else 0,
+                step=1,
+            )
+            setor = st.text_input("setor", value=_text(row["setor"]) if row is not None else "")
             cliente = st.text_input("cliente", value=_text(row["cliente"]) if row is not None else "")
-            numero_processo = st.text_input("numero_processo", value=_text(row["numero_processo"]) if row is not None else "")
-            col_g = st.text_input("col_g", value=_text(row["col_g"]) if row is not None else "")
-            col_h = st.text_input("col_h", value=_text(row["col_h"]) if row is not None else "")
-            col_i = st.text_input("col_i", value=_text(row["col_i"]) if row is not None else "")
-            observacoes = st.text_area("observacoes", value=_text(row["observacoes"]) if row is not None else "", height=120)
+            processo = st.text_input("processo", value=_text(row["processo"]) if row is not None else "")
+            para_ramon_e_adriana_despacharem = st.text_input(
+                "para_ramon_e_adriana_despacharem",
+                value=_text(row["para_ramon_e_adriana_despacharem"]) if row is not None else "",
+            )
+            status_options = ["Em Andamento", "Teste 1", "Teste 2"]
+            status_index = (
+                status_options.index(row["status"])
+                if row is not None and row["status"] in status_options
+                else 0
+            )
+            status = st.selectbox("status", status_options, index=status_index)
+            resposta_do_colaborador = st.text_input(
+                "resposta_do_colaborador",
+                value=_text(row["resposta_do_colaborador"]) if row is not None else "",
+            )
+            observacoes = st.text_area(
+                "observacoes",
+                value=_text(row["observacoes"]) if row is not None else "",
+                height=120,
+            )
             col_save, col_del, col_done = st.columns([2.5, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar PUBLICAÇÃO", use_container_width=True)
@@ -254,15 +298,16 @@ with tab2:
                 concluded = st.form_submit_button("Concluído", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
-                    "data": data,
-                    "col_b": col_b or None,
-                    "col_c": col_c or None,
-                    "col_d": col_d or None,
+                    "d": d,
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": setor or None,
                     "cliente": cliente or None,
-                    "numero_processo": numero_processo or None,
-                    "col_g": col_g or None,
-                    "col_h": col_h or None,
-                    "col_i": col_i or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
                     "observacoes": observacoes or None,
                 }
                 _save_row(Publicacao, target, values)
