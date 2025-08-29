@@ -56,6 +56,32 @@ def set_streamlit_mode(enabled: bool = True):
 
 
 # ====== Utilidades de datas/horas ======
+def format_imap_date(dt: datetime) -> str:
+    """Return date formatted for IMAP queries (e.g. '05-Jul-2024').
+
+    IMAP always expects English month abbreviations regardless of the
+    server/client locale. Using strftime with a different locale may generate
+    invalid month names (like 'mai' or 'set'), which causes the server to
+    respond with *BAD [CLIENTBUG] SEARCH Command arguments invalid*. This
+    helper builds the string manually to avoid locale dependence.
+    """
+
+    months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+    return f"{dt.day:02d}-{months[dt.month - 1]}-{dt.year}"
+
 def to_date_or_none(v):
     """Converte 'DD/MM/YY' ou 'DD/MM/YYYY' para date; aceita date/datetime; senão None."""
     if v is None or v == "":
@@ -567,11 +593,23 @@ def buscar_e_processar_emails():
     for pasta in ["inbox", "Bulk"]:
         mail.select(pasta)
         for remetente in REMETENTES:
-            data_corte = ultima_data.strftime("%d-%b-%Y")
-            print(f"📬 Buscando e-mails de: {remetente} na pasta: {pasta} desde {data_corte}")
-            status, mensagens = mail.search(None, f'FROM "{remetente}"', f"SINCE {data_corte}")
+            data_corte = format_imap_date(ultima_data)
+            print(
+                f"📬 Buscando e-mails de: {remetente} na pasta: {pasta} desde {data_corte}"
+            )
+            try:
+                status, mensagens = mail.search(
+                    None, f'(FROM "{remetente}" SINCE {data_corte})'
+                )
+            except imaplib.IMAP4.error as e:
+                print(
+                    f"❌ Erro ao buscar e-mails na pasta: {pasta} (remetente {remetente}): {e}"
+                )
+                continue
             if status != "OK":
-                print(f"❌ Erro ao buscar e-mails na pasta: {pasta}")
+                print(
+                    f"❌ Erro ao buscar e-mails na pasta: {pasta} (status {status})"
+                )
                 continue
 
             ids = mensagens[0].split()
