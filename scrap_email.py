@@ -493,8 +493,7 @@ def extrair_nomes_do_corpo(texto: str) -> str:
 # ====== Persistência no DB ======
 def add_andamento(session, data_str, setor, nomes_clientes, numero_processo, eventos_limpos):
     rec = Andamento(
-        d=to_date_or_none(data_str),
-        inicio_prazo=None,
+        inicio_prazo=to_date_or_none(data_str),
         fim_prazo=None,
         dias_restantes=None,
         setor=setor or "",
@@ -509,8 +508,7 @@ def add_andamento(session, data_str, setor, nomes_clientes, numero_processo, eve
 
 def add_publicacao(session, data_pub, nome_cliente, processo, evento_texto):
     rec = Publicacao(
-        d=to_date_or_none(data_pub),
-        inicio_prazo=None,
+        inicio_prazo=to_date_or_none(data_pub),
         fim_prazo=None,
         dias_restantes=None,
         setor="",

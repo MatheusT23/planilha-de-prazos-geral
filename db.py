@@ -35,7 +35,6 @@ Base = declarative_base()
 class Andamento(Base):
     __tablename__ = "andamentos"
     id = Column(BigInteger, primary_key=True)
-    d = Column(Date)
     inicio_prazo = Column(Date)
     fim_prazo = Column(Date)
     dias_restantes = Column(Integer)
@@ -46,12 +45,10 @@ class Andamento(Base):
     status = Column(Text)
     resposta_do_colaborador = Column(Text)
     observacoes = Column(Text)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 
 class Publicacao(Base):
     __tablename__ = "publicacoes"
     id = Column(BigInteger, primary_key=True)
-    d = Column(Date)
     inicio_prazo = Column(Date)
     fim_prazo = Column(Date)
     dias_restantes = Column(Integer)
@@ -62,7 +59,6 @@ class Publicacao(Base):
     status = Column(Text)
     resposta_do_colaborador = Column(Text)
     observacoes = Column(Text)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
 
 class Agenda(Base):
     __tablename__ = "agenda"

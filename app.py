@@ -17,8 +17,8 @@ from db import engine, SessionLocal, Andamento, Publicacao, Agenda, Concluida
 
 @st.cache_data(show_spinner=False)
 def _load_tables():
-    df1 = pd.read_sql("select * from andamentos order by created_at desc", engine)
-    df2 = pd.read_sql("select * from publicacoes order by created_at desc", engine)
+    df1 = pd.read_sql("select * from andamentos order by id desc", engine)
+    df2 = pd.read_sql("select * from publicacoes order by id desc", engine)
     df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
     df4 = pd.read_sql("select * from concluidas order by created_at desc", engine)
     return df1, df2, df3, df4
@@ -138,7 +138,7 @@ def _move_to_concluidas(model, rec_id: Optional[int]):
         if rec is None:
             return
         values = {
-            "d": getattr(rec, "d", None) or getattr(rec, "data", None),
+            "d": getattr(rec, "inicio_prazo", None) or getattr(rec, "data", None),
             "inicio_prazo": getattr(rec, "inicio_prazo", None),
             "fim_prazo": getattr(rec, "fim_prazo", None),
             "dias_restantes": getattr(rec, "dias_restantes", None),
@@ -178,7 +178,6 @@ with tab1:
         row = _row_by_id(df1, target)
 
         with st.form("form_andamentos", clear_on_submit=False):
-            d = st.date_input("d", value=_to_date(row["d"]) if row is not None else None)
             inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
             fim_prazo = st.date_input("fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None)
             dias_restantes = st.number_input(
@@ -218,7 +217,6 @@ with tab1:
                 concluded = st.form_submit_button("Concluído", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
-                    "d": d,
                     "inicio_prazo": inicio_prazo or None,
                     "fim_prazo": fim_prazo or None,
                     "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
@@ -258,7 +256,6 @@ with tab2:
         row = _row_by_id(df2, target)
 
         with st.form("form_publicacoes", clear_on_submit=False):
-            d = st.date_input("d", value=_to_date(row["d"]) if row is not None else None)
             inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
             fim_prazo = st.date_input("fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None)
             dias_restantes = st.number_input(
@@ -298,7 +295,6 @@ with tab2:
                 concluded = st.form_submit_button("Concluído", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
-                    "d": d,
                     "inicio_prazo": inicio_prazo or None,
                     "fim_prazo": fim_prazo or None,
                     "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
