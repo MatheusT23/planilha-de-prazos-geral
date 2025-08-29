@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any
 
 import streamlit as st
 import pandas as pd
+from sqlalchemy import text, inspect
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError
 
@@ -156,7 +157,12 @@ def _move_to_concluidas(model, rec_id: Optional[int]):
             "resposta_do_colaborador": getattr(rec, "resposta_do_colaborador", None) or getattr(rec, "cliente_avisado", None),
             "observacoes": getattr(rec, "observacoes", None) or getattr(rec, "observacao", None),
         }
-        db.add(Concluida(**values))
+        # detect available columns in 'concluidas' to support legacy schemas
+        cols = {c["name"] for c in inspect(db.bind).get_columns("concluidas")}
+        filtered = {k: v for k, v in values.items() if k in cols}
+        columns = ", ".join(filtered.keys())
+        placeholders = ", ".join(f":{k}" for k in filtered.keys())
+        db.execute(text(f"INSERT INTO concluidas ({columns}) VALUES ({placeholders})"), filtered)
         db.query(model).filter(model.id == rec_id).delete()
         db.commit()
 
