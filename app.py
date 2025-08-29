@@ -36,6 +36,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.title("Planilha de Prazos Geral 📗")
+if "__last_msg" in st.session_state:
+    st.success(st.session_state.pop("__last_msg"))
 
 # ----- Sidebar: ingestão opcional -----
 st.divider()
@@ -154,12 +156,18 @@ def _move_to_concluidas(model, rec_id: Optional[int]):
         db.query(model).filter(model.id == rec_id).delete()
         db.commit()
 
-def _reload():
+def _reload(msg: Optional[str] = None):
     try:
         _load_tables.clear()
     except Exception:
         pass
     st.session_state["dfs_forms"] = _load_tables()
+    if msg:
+        st.session_state["__last_msg"] = msg
+    try:
+        st.rerun()
+    except AttributeError:
+        st.experimental_rerun()
 
 
 # ---------- ANDAMENTOS ----------
@@ -229,16 +237,13 @@ with tab1:
                     "observacoes": observacoes or None,
                 }
                 _save_row(Andamento, target, values)
-                st.success("Salvo com sucesso.")
-                _reload()
+                _reload("Salvo com sucesso.")
             if deleted and target is not None:
                 _delete_row(Andamento, target)
-                st.success("Excluído com sucesso.")
-                _reload()
+                _reload("Excluído com sucesso.")
             if concluded and target is not None:
                 _move_to_concluidas(Andamento, target)
-                st.success("Movido para Concluídas.")
-                _reload()
+                _reload("Movido para Concluídas.")
 
 # ---------- PUBLICAÇÕES ----------
 with tab2:
@@ -307,16 +312,13 @@ with tab2:
                     "observacoes": observacoes or None,
                 }
                 _save_row(Publicacao, target, values)
-                st.success("Salvo com sucesso.")
-                _reload()
+                _reload("Salvo com sucesso.")
             if deleted and target is not None:
                 _delete_row(Publicacao, target)
-                st.success("Excluído com sucesso.")
-                _reload()
+                _reload("Excluído com sucesso.")
             if concluded and target is not None:
                 _move_to_concluidas(Publicacao, target)
-                st.success("Movido para Concluídas.")
-                _reload()
+                _reload("Movido para Concluídas.")
 
 # ---------- AGENDA ----------
 with tab3:
@@ -371,16 +373,13 @@ with tab3:
                     "sistema": sistema or None,
                 }
                 _save_row(Agenda, target, values)
-                st.success("Salvo com sucesso.")
-                _reload()
+                _reload("Salvo com sucesso.")
             if deleted and target is not None:
                 _delete_row(Agenda, target)
-                st.success("Excluído com sucesso.")
-                _reload()
+                _reload("Excluído com sucesso.")
             if concluded and target is not None:
                 _move_to_concluidas(Agenda, target)
-                st.success("Movido para Concluídas.")
-                _reload()
+                _reload("Movido para Concluídas.")
 
 # ---------- CONCLUÍDAS ----------
 with tab4:
