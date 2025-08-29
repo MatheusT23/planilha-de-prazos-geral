@@ -94,3 +94,9 @@ class Concluida(Base):
     resposta_do_colaborador = Column(Text)
     observacoes = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+
+
+class LastChecked(Base):
+    __tablename__ = "last_checked"
+    id = Column(Integer, primary_key=True)
+    checked_at = Column(TIMESTAMP(timezone=True))
