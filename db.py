@@ -79,3 +79,19 @@ class Agenda(Base):
     parte_adversa = Column(Text)
     sistema = Column(Text)
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+
+
+class Concluida(Base):
+    __tablename__ = "concluidas"
+    id = Column(BigInteger, primary_key=True)
+    data = Column(Date)
+    col_b = Column(Text)
+    col_c = Column(Text)
+    status_assunto = Column(Text)
+    cliente = Column(Text)
+    numero_processo = Column(Text, index=True)
+    col_g = Column(Text)
+    col_h = Column(Text)
+    col_i = Column(Text)
+    observacoes = Column(Text)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"))

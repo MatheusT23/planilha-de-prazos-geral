@@ -13,14 +13,15 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from db import engine, SessionLocal, Andamento, Publicacao, Agenda
+from db import engine, SessionLocal, Andamento, Publicacao, Agenda, Concluida
 
 @st.cache_data(show_spinner=False)
 def _load_tables():
     df1 = pd.read_sql("select * from andamentos order by created_at desc", engine)
     df2 = pd.read_sql("select * from publicacoes order by created_at desc", engine)
     df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
-    return df1, df2, df3
+    df4 = pd.read_sql("select * from concluidas order by created_at desc", engine)
+    return df1, df2, df3, df4
 
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
 # Reduz espaço do cabeçalho para mostrar mais conteúdo principal
@@ -85,9 +86,9 @@ if refresh or "dfs_forms" not in st.session_state:
     _load_tables.clear()
     st.session_state["dfs_forms"] = _load_tables()
 
-df1, df2, df3 = st.session_state["dfs_forms"]
+df1, df2, df3, df4 = st.session_state["dfs_forms"]
 
-tab1, tab2, tab3 = st.tabs(["ANDAMENTOS", "PUBLICAÇÕES", "ANOTAR NA AGENDA E AVISAR"])
+tab1, tab2, tab3, tab4 = st.tabs(["ANDAMENTOS", "PUBLICAÇÕES", "ANOTAR NA AGENDA E AVISAR", "CONCLUÍDAS"])
 
 # ---------- Helpers ----------
 def _to_date(v):
@@ -128,6 +129,30 @@ def _delete_row(model, rec_id: Optional[int]):
         db.query(model).filter(model.id == rec_id).delete()
         db.commit()
 
+
+def _move_to_concluidas(model, rec_id: Optional[int]):
+    if rec_id is None:
+        return
+    with SessionLocal() as db:
+        rec = db.query(model).filter(model.id == rec_id).first()
+        if rec is None:
+            return
+        values = {
+            "data": getattr(rec, "data", None),
+            "col_b": getattr(rec, "col_b", None) or getattr(rec, "horario", None),
+            "col_c": getattr(rec, "col_c", None) or getattr(rec, "cliente_avisado", None),
+            "status_assunto": getattr(rec, "status_assunto", None) or getattr(rec, "col_d", None) or getattr(rec, "status", None),
+            "cliente": getattr(rec, "cliente", None),
+            "numero_processo": getattr(rec, "numero_processo", None),
+            "col_g": getattr(rec, "col_g", None) or getattr(rec, "anotado_na_agenda", None) or getattr(rec, "tipo_audiencia_pericia", None),
+            "col_h": getattr(rec, "col_h", None) or getattr(rec, "materia", None),
+            "col_i": getattr(rec, "col_i", None) or getattr(rec, "parte_adversa", None),
+            "observacoes": getattr(rec, "observacoes", None) or getattr(rec, "observacao", None),
+        }
+        db.add(Concluida(**values))
+        db.query(model).filter(model.id == rec_id).delete()
+        db.commit()
+
 def _reload():
     try:
         _load_tables.clear()
@@ -162,11 +187,13 @@ with tab1:
             col_h = st.text_input("col_h", value=_text(row["col_h"]) if row is not None else "")
             col_i = st.text_input("col_i", value=_text(row["col_i"]) if row is not None else "")
             observacoes = st.text_area("observacoes", value=_text(row["observacoes"]) if row is not None else "", height=120)
-            col_save, col_del = st.columns([3, 1])
+            col_save, col_del, col_done = st.columns([2.5, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar ANDAMENTO", use_container_width=True)
             with col_del:
                 deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
+            with col_done:
+                concluded = st.form_submit_button("Concluído", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
                     "data": data,
@@ -186,6 +213,10 @@ with tab1:
             if deleted and target is not None:
                 _delete_row(Andamento, target)
                 st.success("Excluído com sucesso.")
+                _reload()
+            if concluded and target is not None:
+                _move_to_concluidas(Andamento, target)
+                st.success("Movido para Concluídas.")
                 _reload()
 
 # ---------- PUBLICAÇÕES ----------
@@ -214,11 +245,13 @@ with tab2:
             col_h = st.text_input("col_h", value=_text(row["col_h"]) if row is not None else "")
             col_i = st.text_input("col_i", value=_text(row["col_i"]) if row is not None else "")
             observacoes = st.text_area("observacoes", value=_text(row["observacoes"]) if row is not None else "", height=120)
-            col_save, col_del = st.columns([3, 1])
+            col_save, col_del, col_done = st.columns([2.5, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar PUBLICAÇÃO", use_container_width=True)
             with col_del:
                 deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
+            with col_done:
+                concluded = st.form_submit_button("Concluído", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
                     "data": data,
@@ -238,6 +271,10 @@ with tab2:
             if deleted and target is not None:
                 _delete_row(Publicacao, target)
                 st.success("Excluído com sucesso.")
+                _reload()
+            if concluded and target is not None:
+                _move_to_concluidas(Publicacao, target)
+                st.success("Movido para Concluídas.")
                 _reload()
 
 # ---------- AGENDA ----------
@@ -269,11 +306,13 @@ with tab3:
             materia = st.text_input("materia", value=_text(row["materia"]) if row is not None else "")
             parte_adversa = st.text_input("parte_adversa", value=_text(row["parte_adversa"]) if row is not None else "")
             sistema = st.text_input("sistema", value=_text(row["sistema"]) if row is not None else "")
-            col_save, col_del = st.columns([3, 1])
+            col_save, col_del, col_done = st.columns([2.5, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar AGENDA", use_container_width=True)
             with col_del:
                 deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
+            with col_done:
+                concluded = st.form_submit_button("Concluído", use_container_width=True, disabled=target is None)
             if submitted:
                 values = {
                     "idx": int(idx) if idx and idx.strip().isdigit() else None,
@@ -297,5 +336,14 @@ with tab3:
                 _delete_row(Agenda, target)
                 st.success("Excluído com sucesso.")
                 _reload()
+            if concluded and target is not None:
+                _move_to_concluidas(Agenda, target)
+                st.success("Movido para Concluídas.")
+                _reload()
+
+# ---------- CONCLUÍDAS ----------
+with tab4:
+    st.markdown("#### 📄 Visualização")
+    st.dataframe(df4, use_container_width=True, height=1000)
 
 st.caption("Dica: o modo formulário evita o rerun a cada tecla; os dados só mudam ao clicar Salvar.")
