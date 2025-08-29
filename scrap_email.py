@@ -738,9 +738,14 @@ def buscar_e_processar_emails():
 
     mail.logout()
 
-    # Atualiza marca de tempo
-    if max_data_processada > ultima_data:
-        salvar_ultima_data(max_data_processada)
+    # Atualiza marca de tempo sempre que a busca é executada.
+    # Se não houver e-mails novos (max_data_processada == ultima_data),
+    # salva o momento atual para registrar que a verificação ocorreu.
+    salvar_ultima_data(
+        max_data_processada
+        if max_data_processada > ultima_data
+        else datetime.now(timezone.utc)
+    )
 
     print(f"✅ Banco atualizado com {emails_processados_count} novos itens.")
 
