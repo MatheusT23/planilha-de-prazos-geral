@@ -17,13 +17,12 @@ import unicodedata
 from datetime import datetime, timezone, timedelta, date
 
 # DB imports
-from db import SessionLocal, Andamento, Publicacao, Agenda  # type: ignore
+from db import SessionLocal, Andamento, Publicacao, Agenda, LastChecked  # type: ignore
 
 # ====== Config de e-mail ======
 EMAIL = os.getenv("INBOX_EMAIL", "dri.rodrigues99@yahoo.com.br")
 PASSWORD = os.getenv("INBOX_PASSWORD", "txiwfunruupgweao")
 IMAP_SERVER = os.getenv("IMAP_SERVER", "imap.mail.yahoo.com")
-LAST_CHECKED_FILE = os.getenv("LAST_CHECKED_FILE", "last_checked.txt")
 
 # ====== Remetentes e regras ======
 REMETENTES = [
@@ -79,26 +78,29 @@ def to_date_or_none(v):
 
 
 def ler_ultima_data():
-    """Lê a última data/hora processada do arquivo LAST_CHECKED_FILE em tz -03:00 (Brasil)."""
+    """Obtém a última data/hora processada da tabela last_checked em tz -03:00."""
     fuso_brasil = timezone(timedelta(hours=-3))
-    try:
-        with open(LAST_CHECKED_FILE, "r", encoding="utf-8") as f:
-            dt = datetime.strptime(f.read().strip(), "%Y-%m-%d %H:%M:%S")
-            return dt.replace(tzinfo=fuso_brasil)
-    except Exception:
-        # início remoto para garantir captura total no primeiro run
-        return datetime.min.replace(tzinfo=fuso_brasil)
+    with SessionLocal() as db:
+        rec = db.query(LastChecked).first()
+        if rec and rec.checked_at:
+            return rec.checked_at.astimezone(fuso_brasil)
+    return datetime.min.replace(tzinfo=fuso_brasil)
 
 
 def salvar_ultima_data(dt: datetime):
-    """Salva a marca de tempo mais recente processada (em tz -03:00)."""
+    """Atualiza ou insere a marca de tempo mais recente processada (em tz -03:00)."""
     fuso_brasil = timezone(timedelta(hours=-3))
     if dt.tzinfo is not None:
         dt_local = dt.astimezone(fuso_brasil)
     else:
         dt_local = dt.replace(tzinfo=fuso_brasil)
-    with open(LAST_CHECKED_FILE, "w", encoding="utf-8") as f:
-        f.write(dt_local.strftime("%Y-%m-%d %H:%M:%S"))
+    with SessionLocal() as db:
+        rec = db.query(LastChecked).first()
+        if rec:
+            rec.checked_at = dt_local
+        else:
+            db.add(LastChecked(checked_at=dt_local))
+        db.commit()
 
 
 # ====== Normalização e parsing de textos ======
