@@ -175,7 +175,7 @@ with tab1:
     left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(df1, use_container_width=True, height=1000)
+        st.dataframe(df1, use_container_width=True, height=1000, hide_index=True)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df1["id"].tolist() if "id" in df1.columns else []
@@ -250,7 +250,7 @@ with tab2:
     left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(df2, use_container_width=True, height=1000)
+        st.dataframe(df2, use_container_width=True, height=1000, hide_index=True)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df2["id"].tolist() if "id" in df2.columns else []
@@ -325,7 +325,7 @@ with tab3:
     left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(df3, use_container_width=True, height=1000)
+        st.dataframe(df3, use_container_width=True, height=1000, hide_index=True)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df3["id"].tolist() if "id" in df3.columns else []
@@ -384,6 +384,6 @@ with tab3:
 # ---------- CONCLUÍDAS ----------
 with tab4:
     st.markdown("#### 📄 Visualização")
-    st.dataframe(df4, use_container_width=True, height=1000)
+    st.dataframe(df4, use_container_width=True, height=1000, hide_index=True)
 
 st.caption("Dica: o modo formulário evita o rerun a cada tecla; os dados só mudam ao clicar Salvar.")
