@@ -85,11 +85,16 @@ def style_by_setor(df: pd.DataFrame):
         if not color:
             return ["" for _ in row]
         style = f"background-color: {color};"
-        if color.lower() == "#cce5ff":  # linhas com fundo azul
+        if color.lower() in ("#cce5ff", "#d4edda"):  # linhas com fundo azul ou verde
             style += " color: black;"
         return [style for _ in row]
 
-    return df.style.apply(_style, axis=1)
+    return (
+        df.style.apply(_style, axis=1)
+        .set_table_styles(
+            [{"selector": "tbody tr", "props": [("border-top", "1px solid black")]}]
+        )
+    )
 
 @st.cache_data(show_spinner=False)
 def _load_tables():
