@@ -100,10 +100,10 @@ def style_by_setor(df: pd.DataFrame):
 def _calc_dias_restantes_df(df: pd.DataFrame) -> pd.DataFrame:
     """Atualiza coluna ``dias_restantes`` com base em ``fim_prazo`` e o dia atual."""
     if {"inicio_prazo", "fim_prazo"}.issubset(df.columns):
-        hoje = datetime.now().date()
+        hoje = pd.Timestamp.today().normalize()
         mask = df["inicio_prazo"].notna() & df["fim_prazo"].notna()
         if mask.any():
-            fim = pd.to_datetime(df.loc[mask, "fim_prazo"]).dt.date
+            fim = pd.to_datetime(df.loc[mask, "fim_prazo"]).dt.normalize()
             df.loc[mask, "dias_restantes"] = (fim - hoje).dt.days
     return df
 
