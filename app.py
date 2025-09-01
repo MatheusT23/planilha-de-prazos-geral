@@ -85,7 +85,7 @@ def style_by_setor(df: pd.DataFrame):
         if not color:
             return ["" for _ in row]
         style = f"background-color: {color};"
-        if color.lower() in ("#cce5ff", "#d4edda"):  # linhas com fundo azul ou verde
+        if color.lower() in ("#cce5ff", "#d4edda", "#fff3cd"):  # linhas com fundo azul, verde ou amarelo
             style += " color: black;"
         return [style for _ in row]
 
