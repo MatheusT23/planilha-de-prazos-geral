@@ -98,13 +98,22 @@ def style_by_setor(df: pd.DataFrame):
 
 @st.cache_data(show_spinner=False)
 def _load_tables():
-    df1 = pd.read_sql("select * from andamentos order by id desc", engine)
-    df2 = pd.read_sql("select * from publicacoes order by id desc", engine)
+    def _coerce_dias(df: pd.DataFrame) -> pd.DataFrame:
+        if "dias_restantes" in df.columns:
+            df["dias_restantes"] = df["dias_restantes"].astype("Int64")
+        return df
+
+    df1 = _coerce_dias(pd.read_sql("select * from andamentos order by id desc", engine))
+    df2 = _coerce_dias(pd.read_sql("select * from publicacoes order by id desc", engine))
     df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
     try:
-        df4 = pd.read_sql("select * from concluidas order by created_at desc", engine)
+        df4 = _coerce_dias(
+            pd.read_sql("select * from concluidas order by created_at desc", engine)
+        )
     except ProgrammingError:
-        df4 = pd.read_sql("select * from concluidas order by id desc", engine)
+        df4 = _coerce_dias(
+            pd.read_sql("select * from concluidas order by id desc", engine)
+        )
     return df1, df2, df3, df4
 
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
