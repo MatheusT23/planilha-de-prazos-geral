@@ -278,23 +278,6 @@ with tab1:
         target = None if escolha == "<novo>" else int(escolha)
         row = _row_by_id(df1, target)
 
-        concluded = st.button(
-            "Marcar como Concluída",
-            use_container_width=True,
-            disabled=target is None,
-            key="concl_andamento",
-        )
-        st.markdown(
-            """
-            <style>
-            button[data-testid="baseButton-concl_andamento"] {
-                background-color: #90EE90;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
         with st.form("form_andamentos", clear_on_submit=False):
             inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
             fim_prazo = st.date_input("fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None)
@@ -331,11 +314,28 @@ with tab1:
                 value=_text(row["observacoes"]) if row is not None else "",
                 height=120,
             )
-            col_save, col_del = st.columns([2.5, 1])
+            col_save, col_del, col_conc = st.columns([2.5, 1, 2.5])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar ANDAMENTO", use_container_width=True)
             with col_del:
                 deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
+            with col_conc:
+                concluded = st.form_submit_button(
+                    "Marcar como Concluída",
+                    use_container_width=True,
+                    disabled=target is None,
+                    key="concl_andamento",
+                )
+                st.markdown(
+                    """
+                    <style>
+                    button[data-testid="baseButton-concl_andamento"] {
+                        background-color: #90EE90;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
             if submitted:
                 values = {
                     "inicio_prazo": inicio_prazo or None,
@@ -351,12 +351,25 @@ with tab1:
                 }
                 _save_row(Andamento, target, values)
                 _reload("Salvo com sucesso.")
+            if concluded:
+                values = {
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": setor or None,
+                    "cliente": cliente or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
+                    "observacoes": observacoes or None,
+                }
+                _save_row(Andamento, target, values)
+                _move_to_concluidas(Andamento, target)
+                _reload("Movido para Concluídas.")
             if deleted and target is not None:
                 _delete_row(Andamento, target)
                 _reload("Excluído com sucesso.")
-        if concluded and target is not None:
-            _move_to_concluidas(Andamento, target)
-            _reload("Movido para Concluídas.")
 
 # ---------- PUBLICAÇÕES ----------
 with tab2:
@@ -372,23 +385,6 @@ with tab2:
 
         target = None if escolha == "<novo>" else int(escolha)
         row = _row_by_id(df2, target)
-
-        concluded = st.button(
-            "Marcar como Concluída",
-            use_container_width=True,
-            disabled=target is None,
-            key="concl_publicacao",
-        )
-        st.markdown(
-            """
-            <style>
-            button[data-testid="baseButton-concl_publicacao"] {
-                background-color: #90EE90;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
 
         with st.form("form_publicacoes", clear_on_submit=False):
             inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
@@ -426,11 +422,28 @@ with tab2:
                 value=_text(row["observacoes"]) if row is not None else "",
                 height=120,
             )
-            col_save, col_del = st.columns([2.5, 1])
+            col_save, col_del, col_conc = st.columns([2.5, 1, 2.5])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar PUBLICAÇÃO", use_container_width=True)
             with col_del:
                 deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
+            with col_conc:
+                concluded = st.form_submit_button(
+                    "Marcar como Concluída",
+                    use_container_width=True,
+                    disabled=target is None,
+                    key="concl_publicacao",
+                )
+                st.markdown(
+                    """
+                    <style>
+                    button[data-testid=\"baseButton-concl_publicacao\"] {
+                        background-color: #90EE90;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
             if submitted:
                 values = {
                     "inicio_prazo": inicio_prazo or None,
@@ -446,12 +459,25 @@ with tab2:
                 }
                 _save_row(Publicacao, target, values)
                 _reload("Salvo com sucesso.")
+            if concluded:
+                values = {
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": setor or None,
+                    "cliente": cliente or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
+                    "observacoes": observacoes or None,
+                }
+                _save_row(Publicacao, target, values)
+                _move_to_concluidas(Publicacao, target)
+                _reload("Movido para Concluídas.")
             if deleted and target is not None:
                 _delete_row(Publicacao, target)
                 _reload("Excluído com sucesso.")
-        if concluded and target is not None:
-            _move_to_concluidas(Publicacao, target)
-            _reload("Movido para Concluídas.")
 
 # ---------- AGENDA ----------
 with tab3:
@@ -468,23 +494,6 @@ with tab3:
         target = None if escolha == "<novo>" else int(escolha)
         row = _row_by_id(df3, target)
 
-        concluded = st.button(
-            "Marcar como Concluída",
-            use_container_width=True,
-            disabled=target is None,
-            key="concl_agenda",
-        )
-        st.markdown(
-            """
-            <style>
-            button[data-testid="baseButton-concl_agenda"] {
-                background-color: #90EE90;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
         with st.form("form_agenda", clear_on_submit=False):
             idx = st.text_input("idx", value=_text(row["idx"]) if row is not None else "")
             data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
@@ -499,11 +508,28 @@ with tab3:
             materia = st.text_input("materia", value=_text(row["materia"]) if row is not None else "")
             parte_adversa = st.text_input("parte_adversa", value=_text(row["parte_adversa"]) if row is not None else "")
             sistema = st.text_input("sistema", value=_text(row["sistema"]) if row is not None else "")
-            col_save, col_del = st.columns([2.5, 1])
+            col_save, col_del, col_conc = st.columns([2.5, 1, 2.5])
             with col_save:
                 submitted = st.form_submit_button("💾 Salvar AGENDA", use_container_width=True)
             with col_del:
                 deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
+            with col_conc:
+                concluded = st.form_submit_button(
+                    "Marcar como Concluída",
+                    use_container_width=True,
+                    disabled=target is None,
+                    key="concl_agenda",
+                )
+                st.markdown(
+                    """
+                    <style>
+                    button[data-testid=\"baseButton-concl_agenda\"] {
+                        background-color: #90EE90;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
             if submitted:
                 values = {
                     "idx": int(idx) if idx and idx.strip().isdigit() else None,
@@ -522,12 +548,28 @@ with tab3:
                 }
                 _save_row(Agenda, target, values)
                 _reload("Salvo com sucesso.")
+            if concluded:
+                values = {
+                    "idx": int(idx) if idx and idx.strip().isdigit() else None,
+                    "data": data,
+                    "horario": horario or None,
+                    "status": status or None,
+                    "cliente": cliente or None,
+                    "cliente_avisado": cliente_avisado or None,
+                    "anotado_na_agenda": anotado_na_agenda or None,
+                    "observacao": observacao or None,
+                    "numero_processo": numero_processo or None,
+                    "tipo_audiencia_pericia": tipo_audiencia_pericia or None,
+                    "materia": materia or None,
+                    "parte_adversa": parte_adversa or None,
+                    "sistema": sistema or None,
+                }
+                _save_row(Agenda, target, values)
+                _move_to_concluidas(Agenda, target)
+                _reload("Movido para Concluídas.")
             if deleted and target is not None:
                 _delete_row(Agenda, target)
                 _reload("Excluído com sucesso.")
-        if concluded and target is not None:
-            _move_to_concluidas(Agenda, target)
-            _reload("Movido para Concluídas.")
 
 # ---------- CONCLUÍDAS ----------
 with tab4:
