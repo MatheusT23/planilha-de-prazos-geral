@@ -44,7 +44,7 @@ CORRECOES_ACENTOS = {
 }
 PALAVRAS_CHAVE = [
     "rpv", "alvará", "alvara", "precatório", "precatorio", "acordo homologado",
-    "expedição de rpv", "expedicao de rpv", "expedido", "pagamento",
+    "expedição de rpv", "expedicao de rpv", "pagamento",
 ]
 
 # ====== Compat c/ app_streamlit_hibrido.py ======
