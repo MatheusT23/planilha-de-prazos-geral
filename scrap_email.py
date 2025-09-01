@@ -120,6 +120,9 @@ def salvar_ultima_data(dt: datetime):
         dt_local = dt.astimezone(fuso_brasil)
     else:
         dt_local = dt.replace(tzinfo=fuso_brasil)
+    now_local = datetime.now(fuso_brasil)
+    if dt_local > now_local:
+        dt_local = now_local
     with SessionLocal() as db:
         rec = db.query(LastChecked).first()
         if rec:
