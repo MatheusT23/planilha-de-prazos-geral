@@ -96,6 +96,17 @@ def style_by_setor(df: pd.DataFrame):
         )
     )
 
+
+def _calc_dias_restantes_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Atualiza coluna ``dias_restantes`` com base em ``fim_prazo`` e o dia atual."""
+    if {"inicio_prazo", "fim_prazo"}.issubset(df.columns):
+        hoje = datetime.now().date()
+        mask = df["inicio_prazo"].notna() & df["fim_prazo"].notna()
+        if mask.any():
+            fim = pd.to_datetime(df.loc[mask, "fim_prazo"]).dt.date
+            df.loc[mask, "dias_restantes"] = (fim - hoje).dt.days
+    return df
+
 @st.cache_data(show_spinner=False)
 def _load_tables():
     def _coerce_dias(df: pd.DataFrame) -> pd.DataFrame:
@@ -103,17 +114,24 @@ def _load_tables():
             df["dias_restantes"] = df["dias_restantes"].astype("Int64")
         return df
 
-    df1 = _coerce_dias(pd.read_sql("select * from andamentos order by id desc", engine))
-    df2 = _coerce_dias(pd.read_sql("select * from publicacoes order by id desc", engine))
+    df1 = pd.read_sql("select * from andamentos order by id desc", engine)
+    df1 = _calc_dias_restantes_df(df1)
+    df1 = _coerce_dias(df1)
+
+    df2 = pd.read_sql("select * from publicacoes order by id desc", engine)
+    df2 = _calc_dias_restantes_df(df2)
+    df2 = _coerce_dias(df2)
+
     df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
+
     try:
-        df4 = _coerce_dias(
-            pd.read_sql("select * from concluidas order by created_at desc", engine)
-        )
+        df4 = pd.read_sql("select * from concluidas order by created_at desc", engine)
+        df4 = _calc_dias_restantes_df(df4)
+        df4 = _coerce_dias(df4)
     except ProgrammingError:
-        df4 = _coerce_dias(
-            pd.read_sql("select * from concluidas order by id desc", engine)
-        )
+        df4 = pd.read_sql("select * from concluidas order by id desc", engine)
+        df4 = _calc_dias_restantes_df(df4)
+        df4 = _coerce_dias(df4)
     return df1, df2, df3, df4
 
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
@@ -229,6 +247,15 @@ def _row_by_id(df: pd.DataFrame, rid: Optional[int]) -> Optional[pd.Series]:
     if hit.empty:
         return None
     return hit.iloc[0]
+
+def _apply_prazo_logic(inicio_prazo, fim_prazo, dias_restantes):
+    """Aplica regras de cálculo entre início, fim e dias restantes."""
+    hoje = datetime.now().date()
+    if inicio_prazo and fim_prazo:
+        dias_restantes = (fim_prazo - hoje).days
+    elif inicio_prazo and dias_restantes is not None:
+        fim_prazo = inicio_prazo + timedelta(days=int(dias_restantes))
+    return inicio_prazo, fim_prazo, dias_restantes
 
 def _save_row(model, rec_id: Optional[int], values: Dict[str, Any]):
     with SessionLocal() as db:
@@ -363,6 +390,9 @@ with tab1:
                     unsafe_allow_html=True,
                 )
             if submitted:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
                 values = {
                     "inicio_prazo": inicio_prazo or None,
                     "fim_prazo": fim_prazo or None,
@@ -378,6 +408,9 @@ with tab1:
                 _save_row(Andamento, target, values)
                 _reload("Salvo com sucesso.")
             if concluded:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
                 values = {
                     "inicio_prazo": inicio_prazo or None,
                     "fim_prazo": fim_prazo or None,
@@ -471,6 +504,9 @@ with tab2:
                     unsafe_allow_html=True,
                 )
             if submitted:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
                 values = {
                     "inicio_prazo": inicio_prazo or None,
                     "fim_prazo": fim_prazo or None,
@@ -486,6 +522,9 @@ with tab2:
                 _save_row(Publicacao, target, values)
                 _reload("Salvo com sucesso.")
             if concluded:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
                 values = {
                     "inicio_prazo": inicio_prazo or None,
                     "fim_prazo": fim_prazo or None,
