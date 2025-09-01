@@ -105,6 +105,18 @@ def _load_tables():
         df4 = pd.read_sql("select * from concluidas order by created_at desc", engine)
     except ProgrammingError:
         df4 = pd.read_sql("select * from concluidas order by id desc", engine)
+
+    today = datetime.now().date()
+    for df in (df1, df2, df3, df4):
+        if {"inicio_prazo", "fim_prazo", "dias_restantes"}.issubset(df.columns):
+            mask = df["inicio_prazo"].notna() & df["fim_prazo"].notna()
+            df.loc[mask, "dias_restantes"] = (
+                pd.to_datetime(df.loc[mask, "fim_prazo"]).dt.date - today
+            ).dt.days
+            df["dias_restantes"] = df["dias_restantes"].astype("Int64")
+        elif "dias_restantes" in df.columns:
+            df["dias_restantes"] = df["dias_restantes"].astype("Int64")
+
     return df1, df2, df3, df4
 
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
@@ -221,6 +233,38 @@ def _row_by_id(df: pd.DataFrame, rid: Optional[int]) -> Optional[pd.Series]:
         return None
     return hit.iloc[0]
 
+
+def _sync_prazo(
+    inicio_prazo,
+    fim_prazo,
+    dias_restantes,
+    original_dias: Optional[int] = None,
+):
+    """Ajusta automaticamente dias_restantes e fim_prazo.
+
+    - Se inicio e fim estiverem preenchidos, dias_restantes é calculado
+      automaticamente com base no dia atual.
+    - Se o usuário alterar manualmente dias_restantes, o fim_prazo é atualizado
+      a partir de inicio_prazo.
+    """
+
+    today = datetime.now().date()
+    dias_input = int(dias_restantes) if dias_restantes is not None else None
+
+    if inicio_prazo and fim_prazo:
+        dias_calc = (fim_prazo - today).days
+        if original_dias is not None and dias_input != original_dias:
+            fim_prazo = inicio_prazo + timedelta(days=dias_input or 0)
+            dias_calc = (fim_prazo - today).days
+        dias_input = dias_calc
+    elif inicio_prazo and dias_input is not None:
+        fim_prazo = inicio_prazo + timedelta(days=dias_input)
+        dias_input = (fim_prazo - today).days
+    elif fim_prazo:
+        dias_input = (fim_prazo - today).days
+
+    return fim_prazo, dias_input
+
 def _save_row(model, rec_id: Optional[int], values: Dict[str, Any]):
     with SessionLocal() as db:
         if rec_id is not None:
@@ -296,12 +340,34 @@ with tab1:
         row = _row_by_id(df1, target)
 
         with st.form("form_andamentos", clear_on_submit=False):
-            inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
-            fim_prazo = st.date_input("fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None)
+            inicio_prazo = st.date_input(
+                "inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None
+            )
+            fim_prazo = st.date_input(
+                "fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None
+            )
+            valor_dias = (
+                int(row["dias_restantes"])
+                if row is not None and not pd.isna(row["dias_restantes"])
+                else (
+                    (fim_prazo - datetime.now().date()).days
+                    if inicio_prazo and fim_prazo
+                    else 0
+                )
+            )
             dias_restantes = st.number_input(
                 "dias_restantes",
-                value=int(row["dias_restantes"]) if row is not None and not pd.isna(row["dias_restantes"]) else 0,
+                value=valor_dias,
                 step=1,
+                format="%d",
+            )
+            original_dias = (
+                int(row["dias_restantes"])
+                if row is not None and not pd.isna(row["dias_restantes"])
+                else None
+            )
+            fim_prazo, dias_restantes = _sync_prazo(
+                inicio_prazo, fim_prazo, dias_restantes, original_dias
             )
             setor_index = (
                 SETOR_OPTIONS.index(row["setor"])
@@ -404,12 +470,34 @@ with tab2:
         row = _row_by_id(df2, target)
 
         with st.form("form_publicacoes", clear_on_submit=False):
-            inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
-            fim_prazo = st.date_input("fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None)
+            inicio_prazo = st.date_input(
+                "inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None
+            )
+            fim_prazo = st.date_input(
+                "fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None
+            )
+            valor_dias = (
+                int(row["dias_restantes"])
+                if row is not None and not pd.isna(row["dias_restantes"])
+                else (
+                    (fim_prazo - datetime.now().date()).days
+                    if inicio_prazo and fim_prazo
+                    else 0
+                )
+            )
             dias_restantes = st.number_input(
                 "dias_restantes",
-                value=int(row["dias_restantes"]) if row is not None and not pd.isna(row["dias_restantes"]) else 0,
+                value=valor_dias,
                 step=1,
+                format="%d",
+            )
+            original_dias = (
+                int(row["dias_restantes"])
+                if row is not None and not pd.isna(row["dias_restantes"])
+                else None
+            )
+            fim_prazo, dias_restantes = _sync_prazo(
+                inicio_prazo, fim_prazo, dias_restantes, original_dias
             )
             setor_index = (
                 SETOR_OPTIONS.index(row["setor"])
