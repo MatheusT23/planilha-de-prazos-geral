@@ -26,6 +26,17 @@ from db import (
     LastChecked,
 )
 
+# Opções fixas para o campo "setor" em todos os formulários
+SETOR_OPTIONS = [
+    "Andamento",
+    "Lívia",
+    "Ana Clara",
+    "Nada a Fazer",
+    "Correção",
+    "Assinatura",
+    "Tainá",
+]
+
 @st.cache_data(show_spinner=False)
 def _load_tables():
     df1 = pd.read_sql("select * from andamentos order by id desc", engine)
@@ -250,7 +261,12 @@ with tab1:
                 value=int(row["dias_restantes"]) if row is not None and not pd.isna(row["dias_restantes"]) else 0,
                 step=1,
             )
-            setor = st.text_input("setor", value=_text(row["setor"]) if row is not None else "")
+            setor_index = (
+                SETOR_OPTIONS.index(row["setor"])
+                if row is not None and row["setor"] in SETOR_OPTIONS
+                else 0
+            )
+            setor = st.selectbox("setor", SETOR_OPTIONS, index=setor_index)
             cliente = st.text_input("cliente", value=_text(row["cliente"]) if row is not None else "")
             processo = st.text_input("processo", value=_text(row["processo"]) if row is not None else "")
             para_ramon_e_adriana_despacharem = st.text_input(
@@ -340,7 +356,12 @@ with tab2:
                 value=int(row["dias_restantes"]) if row is not None and not pd.isna(row["dias_restantes"]) else 0,
                 step=1,
             )
-            setor = st.text_input("setor", value=_text(row["setor"]) if row is not None else "")
+            setor_index = (
+                SETOR_OPTIONS.index(row["setor"])
+                if row is not None and row["setor"] in SETOR_OPTIONS
+                else 0
+            )
+            setor = st.selectbox("setor", SETOR_OPTIONS, index=setor_index)
             cliente = st.text_input("cliente", value=_text(row["cliente"]) if row is not None else "")
             processo = st.text_input("processo", value=_text(row["processo"]) if row is not None else "")
             para_ramon_e_adriana_despacharem = st.text_input(
