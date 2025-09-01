@@ -70,7 +70,12 @@ def style_by_setor(df: pd.DataFrame):
 
     def _style(row: pd.Series):
         color = SETOR_COLORS.get(_normalize_setor(row.get("setor")), "")
-        return [f"background-color: {color}" if color else "" for _ in row]
+        if not color:
+            return ["" for _ in row]
+        style = f"background-color: {color};"
+        if color.lower() == "#cce5ff":  # linhas com fundo azul
+            style += " color: black;"
+        return [style for _ in row]
 
     return df.style.apply(_style, axis=1)
 
