@@ -79,7 +79,8 @@ col_btn, col_info = st.columns([1, 4])
 with col_btn:
     buscar = st.button("🛰️ Buscar Novos Emails")
 with col_info:
-    st.text(f"Última Atualização de Emails: {last_email_checked}")
+    last_email_display = st.empty()
+last_email_display.text(f"Última Atualização de Emails: {last_email_checked}")
 
 # Executa o scrap_email.py fixo quando clicar em Buscar Novos Emails
 if 'buscar' in locals() and buscar:
@@ -110,6 +111,8 @@ if 'buscar' in locals() and buscar:
             _load_tables.clear()
             if 'dfs_forms' in st.session_state:
                 st.session_state.pop('dfs_forms')
+            last_email_checked = _last_email_update() or "Nunca"
+            last_email_display.text(f"Última Atualização de Emails: {last_email_checked}")
             refresh = True
         else:
             st.error("Função 'buscar_e_processar_emails' não encontrada no script.")
