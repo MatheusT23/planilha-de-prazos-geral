@@ -38,6 +38,18 @@ SETOR_OPTIONS = [
     "Tainá",
 ]
 
+# Opções fixas para o campo "status" em todos os formulários
+STATUS_OPTIONS = [
+    "Feito",
+    "Correção",
+    "Assinatura",
+    "Nada a Fazer",
+    "Em Andamento",
+    "Redistribuir",
+    "Para Ana Clara",
+    "Para Lívia",
+]
+
 SETOR_COLORS = {
     "andamento": "#cce5ff",  # azul claro
     "livia": "#e6ccff",  # roxo claro
@@ -298,7 +310,7 @@ with tab1:
                 "para_ramon_e_adriana_despacharem",
                 value=_text(row["para_ramon_e_adriana_despacharem"]) if row is not None else "",
             )
-            status_options = ["Em Andamento", "Teste 1", "Teste 2"]
+            status_options = STATUS_OPTIONS
             status_index = (
                 status_options.index(row["status"])
                 if row is not None and row["status"] in status_options
@@ -406,7 +418,7 @@ with tab2:
                 "para_ramon_e_adriana_despacharem",
                 value=_text(row["para_ramon_e_adriana_despacharem"]) if row is not None else "",
             )
-            status_options = ["Em Andamento", "Teste 1", "Teste 2"]
+            status_options = STATUS_OPTIONS
             status_index = (
                 status_options.index(row["status"])
                 if row is not None and row["status"] in status_options
