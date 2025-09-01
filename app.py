@@ -14,7 +14,7 @@ import pandas as pd
 from sqlalchemy import text, inspect
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError
-from datetime import timezone, timedelta
+from datetime import timezone, timedelta, datetime
 
 from db import (
     engine,
@@ -68,6 +68,9 @@ def _last_email_update() -> Optional[str]:
                 dt = rec.checked_at.astimezone(timezone(timedelta(hours=-3)))
             except Exception:
                 dt = rec.checked_at
+            now = datetime.now(timezone(timedelta(hours=-3)))
+            if dt > now:
+                dt = now
             return dt.strftime("%d/%m/%Y %H:%M")
     return None
 
