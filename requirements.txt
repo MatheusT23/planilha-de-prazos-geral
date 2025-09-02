@@ -5,3 +5,7 @@ psycopg2-binary
 beautifulsoup4
 openpyxl
 streamlit-aggrid
+playwright
+python-dotenv
+tenacity
+pytz
