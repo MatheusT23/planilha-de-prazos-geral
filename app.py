@@ -29,6 +29,7 @@ from db import (
 
 # Opções fixas para o campo "status" em todos os formulários
 STATUS_OPTIONS = [
+    "",
     "Feito",
     "Correção",
     "Assinatura",
