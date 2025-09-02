@@ -99,4 +99,5 @@ class Concluida(Base):
 class LastChecked(Base):
     __tablename__ = "last_checked"
     id = Column(Integer, primary_key=True)
+    scope = Column(Text, unique=True)
     checked_at = Column(TIMESTAMP(timezone=True))

@@ -18,6 +18,9 @@ from datetime import datetime, timezone, timedelta, date
 
 # DB imports
 from db import SessionLocal, Andamento, Publicacao, Agenda, LastChecked  # type: ignore
+from last_checked_utils import get_last_checked, set_last_checked  # type: ignore
+
+LAST_CHECK_SCOPE = "scrap_email"
 
 # ====== Config de e-mail ======
 EMAIL = os.getenv("INBOX_EMAIL", "dri.rodrigues99@yahoo.com.br")
@@ -106,10 +109,12 @@ def to_date_or_none(v):
 def ler_ultima_data():
     """Obtém a última data/hora processada da tabela last_checked em tz -03:00."""
     fuso_brasil = timezone(timedelta(hours=-3))
-    with SessionLocal() as db:
-        rec = db.query(LastChecked).first()
-        if rec and rec.checked_at:
-            return rec.checked_at.astimezone(fuso_brasil)
+    dt = get_last_checked(LAST_CHECK_SCOPE)
+    if dt:
+        try:
+            return dt.astimezone(fuso_brasil)
+        except Exception:
+            return dt
     return datetime.min.replace(tzinfo=fuso_brasil)
 
 
@@ -123,13 +128,11 @@ def salvar_ultima_data(dt: datetime):
     now_local = datetime.now(fuso_brasil)
     if dt_local > now_local:
         dt_local = now_local
-    with SessionLocal() as db:
-        rec = db.query(LastChecked).first()
-        if rec:
-            rec.checked_at = dt_local
-        else:
-            db.add(LastChecked(checked_at=dt_local))
-        db.commit()
+    # Garantir monotonicidade
+    prev = get_last_checked(LAST_CHECK_SCOPE)
+    if prev and prev > dt_local:
+        dt_local = prev
+    set_last_checked(LAST_CHECK_SCOPE, dt_local)
 
 
 # ====== Normalização e parsing de textos ======
