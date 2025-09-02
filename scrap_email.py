@@ -531,7 +531,7 @@ def add_andamento(session, data_str, setor, nomes_clientes, numero_processo, eve
         cliente=nomes_clientes or "",
         processo=numero_processo or "",
         para_ramon_e_adriana_despacharem="",
-        status="Em Andamento",
+        status="",
         resposta_do_colaborador="",
         observacoes=eventos_limpos or "",
     )
@@ -546,7 +546,7 @@ def add_publicacao(session, data_pub, nome_cliente, processo, evento_texto):
         cliente=nome_cliente or "",
         processo=processo or "",
         para_ramon_e_adriana_despacharem="",
-        status="Em Andamento",
+        status="",
         resposta_do_colaborador="",
         observacoes=evento_texto or "",
     )
