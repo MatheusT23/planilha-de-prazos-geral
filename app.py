@@ -14,7 +14,7 @@ import pandas as pd
 from sqlalchemy import text, inspect
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError
-from datetime import timezone, timedelta, datetime
+from datetime import timezone, timedelta, datetime, date
 import unicodedata
 
 from db import (
@@ -146,9 +146,33 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-st.title("Planilha de Prazos Geral 📗")
+
+if "show_settings" not in st.session_state:
+    st.session_state["show_settings"] = False
+if "filter_date" not in st.session_state:
+    st.session_state["filter_date"] = date(1970, 1, 1)
+
+menu_col, title_col = st.columns([0.1, 0.9])
+with menu_col:
+    if st.button("☰ Menu", use_container_width=True):
+        st.session_state["show_settings"] = True
+with title_col:
+    st.title("Planilha de Prazos Geral 📗")
 if "__last_msg" in st.session_state:
     st.success(st.session_state.pop("__last_msg"))
+
+if st.session_state.get("show_settings"):
+    with st.sidebar:
+        st.header("Configurações")
+        filtro_data = st.date_input(
+            "Mostrar dados a partir de",
+            value=st.session_state.get("filter_date"),
+            format="DD/MM/YYYY",
+            key="filter_date_input",
+        )
+        st.session_state["filter_date"] = filtro_data
+        if st.button("Fechar", key="close_sidebar"):
+            st.session_state["show_settings"] = False
 
 # ----- Sidebar: ingestão opcional -----
 st.divider()
@@ -221,6 +245,18 @@ if refresh or "dfs_forms" not in st.session_state:
     st.session_state["dfs_forms"] = _load_tables()
 
 df1, df2, df3, df4 = st.session_state["dfs_forms"]
+
+filtro_data = st.session_state.get("filter_date")
+if filtro_data:
+    def _filtrar_por_inicio(df: pd.DataFrame) -> pd.DataFrame:
+        if "inicio_prazo" in df.columns:
+            serie = pd.to_datetime(df["inicio_prazo"], errors="coerce")
+            return df[serie >= pd.to_datetime(filtro_data)]
+        return df
+
+    df1 = _filtrar_por_inicio(df1)
+    df2 = _filtrar_por_inicio(df2)
+    df4 = _filtrar_por_inicio(df4)
 
 tab1, tab2, tab3, tab4 = st.tabs(["ANDAMENTOS", "PUBLICAÇÕES", "ANOTAR NA AGENDA E AVISAR", "CONCLUÍDAS"])
 
