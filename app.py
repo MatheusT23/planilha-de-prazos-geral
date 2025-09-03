@@ -66,6 +66,19 @@ def _normalize_setor(val: Any) -> str:
     return val.strip().lower()
 
 
+def _detect_audiencia_pericia(text: Any) -> Optional[str]:
+    """Retorna "Audiência" ou "Perícia" se o texto contiver essas palavras."""
+    if text is None:
+        return None
+    val = unicodedata.normalize("NFKD", str(text))
+    val = val.encode("ascii", "ignore").decode("ascii").lower()
+    if "audiencia" in val:
+        return "Audiência"
+    if "pericia" in val:
+        return "Perícia"
+    return None
+
+
 def style_by_setor(df: pd.DataFrame):
     if "setor" not in df.columns:
         return df
@@ -378,20 +391,42 @@ with tab1:
                 inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
                     inicio_prazo, fim_prazo, dias_restantes
                 )
-                values = {
-                    "inicio_prazo": inicio_prazo or None,
-                    "fim_prazo": fim_prazo or None,
-                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
-                    "setor": setor or None,
-                    "cliente": cliente or None,
-                    "processo": processo or None,
-                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
-                    "status": status or None,
-                    "resposta_do_colaborador": resposta_do_colaborador or None,
-                    "observacoes": observacoes or None,
-                }
-                _save_row(Andamento, target, values)
-                _reload("Salvo com sucesso.")
+                tipo_ap = _detect_audiencia_pericia(resposta_do_colaborador)
+                if tipo_ap:
+                    agenda_values = {
+                        "idx": None,
+                        "data": fim_prazo or inicio_prazo,
+                        "horario": None,
+                        "status": None,
+                        "cliente": cliente or None,
+                        "cliente_avisado": None,
+                        "anotado_na_agenda": None,
+                        "observacao": resposta_do_colaborador or observacoes or None,
+                        "numero_processo": processo or None,
+                        "tipo_audiencia_pericia": tipo_ap,
+                        "materia": None,
+                        "parte_adversa": None,
+                        "sistema": "manual",
+                    }
+                    _save_row(Agenda, None, agenda_values)
+                    if target is not None:
+                        _delete_row(Andamento, target)
+                    _reload("Movido para Agenda.")
+                else:
+                    values = {
+                        "inicio_prazo": inicio_prazo or None,
+                        "fim_prazo": fim_prazo or None,
+                        "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                        "setor": setor or None,
+                        "cliente": cliente or None,
+                        "processo": processo or None,
+                        "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                        "status": status or None,
+                        "resposta_do_colaborador": resposta_do_colaborador or None,
+                        "observacoes": observacoes or None,
+                    }
+                    _save_row(Andamento, target, values)
+                    _reload("Salvo com sucesso.")
             if concluded:
                 inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
                     inicio_prazo, fim_prazo, dias_restantes
@@ -487,20 +522,42 @@ with tab2:
                 inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
                     inicio_prazo, fim_prazo, dias_restantes
                 )
-                values = {
-                    "inicio_prazo": inicio_prazo or None,
-                    "fim_prazo": fim_prazo or None,
-                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
-                    "setor": setor or None,
-                    "cliente": cliente or None,
-                    "processo": processo or None,
-                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
-                    "status": status or None,
-                    "resposta_do_colaborador": resposta_do_colaborador or None,
-                    "observacoes": observacoes or None,
-                }
-                _save_row(Publicacao, target, values)
-                _reload("Salvo com sucesso.")
+                tipo_ap = _detect_audiencia_pericia(resposta_do_colaborador)
+                if tipo_ap:
+                    agenda_values = {
+                        "idx": None,
+                        "data": fim_prazo or inicio_prazo,
+                        "horario": None,
+                        "status": None,
+                        "cliente": cliente or None,
+                        "cliente_avisado": None,
+                        "anotado_na_agenda": None,
+                        "observacao": resposta_do_colaborador or observacoes or None,
+                        "numero_processo": processo or None,
+                        "tipo_audiencia_pericia": tipo_ap,
+                        "materia": None,
+                        "parte_adversa": None,
+                        "sistema": "manual",
+                    }
+                    _save_row(Agenda, None, agenda_values)
+                    if target is not None:
+                        _delete_row(Publicacao, target)
+                    _reload("Movido para Agenda.")
+                else:
+                    values = {
+                        "inicio_prazo": inicio_prazo or None,
+                        "fim_prazo": fim_prazo or None,
+                        "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                        "setor": setor or None,
+                        "cliente": cliente or None,
+                        "processo": processo or None,
+                        "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                        "status": status or None,
+                        "resposta_do_colaborador": resposta_do_colaborador or None,
+                        "observacoes": observacoes or None,
+                    }
+                    _save_row(Publicacao, target, values)
+                    _reload("Salvo com sucesso.")
             if concluded:
                 inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
                     inicio_prazo, fim_prazo, dias_restantes
