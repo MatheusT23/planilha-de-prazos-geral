@@ -150,7 +150,7 @@ st.markdown(
 if "show_settings" not in st.session_state:
     st.session_state["show_settings"] = False
 if "filter_date" not in st.session_state:
-    st.session_state["filter_date"] = date(1970, 1, 1)
+    st.session_state["filter_date"] = date(2025, 8, 1)
 
 menu_col, title_col = st.columns([0.1, 0.9])
 with menu_col:
@@ -167,6 +167,8 @@ if st.session_state.get("show_settings"):
         filtro_data = st.date_input(
             "Mostrar dados a partir de",
             value=st.session_state.get("filter_date"),
+            min_value=date(2025, 1, 1),
+            max_value=date(2050, 12, 31),
             format="DD/MM/YYYY",
             key="filter_date_input",
         )
