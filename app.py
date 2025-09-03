@@ -40,8 +40,9 @@ STATUS_OPTIONS = [
     "Para Lívia",
 ]
 
-SETOR_COLORS = {
+STATUS_COLORS = {
     "andamento": "#cce5ff",  # azul claro
+    "em andamento": "#cce5ff",
     "livia": "#e6ccff",  # roxo claro
     "lívia": "#e6ccff",
     "ana clara": "#fff3cd",  # amarelo claro
@@ -58,7 +59,7 @@ SETOR_COLORS = {
 }
 
 
-def _normalize_setor(val: Any) -> str:
+def _normalize_status(val: Any) -> str:
     if val is None:
         return ""
     val = unicodedata.normalize("NFKD", str(val))
@@ -79,12 +80,12 @@ def _detect_audiencia_pericia(text: Any) -> Optional[str]:
     return None
 
 
-def style_by_setor(df: pd.DataFrame):
-    if "setor" not in df.columns:
+def style_by_status(df: pd.DataFrame):
+    if "status" not in df.columns:
         return df
 
     def _style(row: pd.Series):
-        color = SETOR_COLORS.get(_normalize_setor(row.get("setor")), "")
+        color = STATUS_COLORS.get(_normalize_status(row.get("status")), "")
         if not color:
             return ["" for _ in row]
         style = f"background-color: {color};"
@@ -324,7 +325,7 @@ with tab1:
     left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(style_by_setor(df1), use_container_width=True, height=1000, hide_index=True)
+        st.dataframe(style_by_status(df1), use_container_width=True, height=1000, hide_index=True)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df1["id"].tolist() if "id" in df1.columns else []
@@ -455,7 +456,7 @@ with tab2:
     left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(style_by_setor(df2), use_container_width=True, height=1000, hide_index=True)
+        st.dataframe(style_by_status(df2), use_container_width=True, height=1000, hide_index=True)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df2["id"].tolist() if "id" in df2.columns else []
@@ -586,7 +587,7 @@ with tab3:
     left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(style_by_setor(df3), use_container_width=True, height=1000, hide_index=True)
+        st.dataframe(style_by_status(df3), use_container_width=True, height=1000, hide_index=True)
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df3["id"].tolist() if "id" in df3.columns else []
@@ -676,6 +677,6 @@ with tab3:
 # ---------- CONCLUÍDAS ----------
 with tab4:
     st.markdown("#### 📄 Visualização")
-    st.dataframe(style_by_setor(df4), use_container_width=True, height=1000, hide_index=True)
+    st.dataframe(style_by_status(df4), use_container_width=True, height=1000, hide_index=True)
 
 st.caption("Dica: o modo formulário evita o rerun a cada tecla; os dados só mudam ao clicar Salvar.")
