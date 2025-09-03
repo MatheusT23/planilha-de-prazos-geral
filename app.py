@@ -38,24 +38,20 @@ STATUS_OPTIONS = [
     "Redistribuir",
     "Para Ana Clara",
     "Para Lívia",
+    "Para Tainá",
 ]
 
 STATUS_COLORS = {
-    "andamento": "#cce5ff",  # azul claro
-    "em andamento": "#cce5ff",
-    "livia": "#e6ccff",  # roxo claro
-    "lívia": "#e6ccff",
-    "ana clara": "#fff3cd",  # amarelo claro
+    "em andamento": "#cce5ff",  # azul claro
+    "para livia": "#e6ccff",  # roxo claro
+    "para ana clara": "#fff3cd",  # amarelo claro
+    "para taina": "#d2b48c",  # marrom claro
     "feito": "#d4edda",  # verde claro
     "nada a fazer": "#d4edda",
     "feito e nada a fazer": "#d4edda",
     "correcao": "#ffe5b4",  # laranja claro
-    "correção": "#ffe5b4",
     "assinatura": "#ffe5b4",
     "correcao e assinatura": "#ffe5b4",
-    "correção e assinatura": "#ffe5b4",
-    "taina": "#d2b48c",  # marrom claro
-    "tainá": "#d2b48c",
 }
 
 
