@@ -52,6 +52,18 @@ STATUS_COLORS = {
     "correcao": "#ffe5b4",  # laranja claro
     "assinatura": "#ffe5b4",
     "correcao e assinatura": "#ffe5b4",
+    "avisado": "#d4edda",  # verde claro
+    "ja ocorreu": "#cce5ff",  # azul claro
+    "remarcada": "#e6ccff",  # roxo claro
+    "cancelada": "#f8d7da",  # vermelho claro
+}
+
+BLACK_TEXT_COLORS = {
+    "#cce5ff",
+    "#d4edda",
+    "#fff3cd",
+    "#e6ccff",
+    "#f8d7da",
 }
 
 
@@ -85,7 +97,7 @@ def style_by_status(df: pd.DataFrame):
         if not color:
             return ["" for _ in row]
         style = f"background-color: {color};"
-        if color.lower() in ("#cce5ff", "#d4edda", "#fff3cd"):  # linhas com fundo azul, verde ou amarelo
+        if color.lower() in BLACK_TEXT_COLORS:
             style += " color: black;"
         return [style for _ in row]
 
@@ -636,7 +648,7 @@ with tab3:
             idx = st.text_input("idx", value=_text(row["idx"]) if row is not None else "")
             data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
             horario = st.text_input("horario", value=_text(row["horario"]) if row is not None else "")
-            status_options = ["Andamentos", "Já ocorreu", "Remarcada", "Cancelada"]
+            status_options = ["Avisado", "Já ocorreu", "Remarcada", "Cancelada"]
             status_index = (
                 status_options.index(row["status"])
                 if row is not None and row["status"] in status_options
