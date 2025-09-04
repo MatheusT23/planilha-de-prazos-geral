@@ -164,7 +164,7 @@ if "filter_date" not in st.session_state:
 
 menu_col, title_col = st.columns([0.1, 0.9])
 with menu_col:
-    st.markdown("<div style='margin-top: 1rem'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 1.2rem'></div>", unsafe_allow_html=True)
     if st.button("☰ Menu", use_container_width=True):
         st.session_state["show_settings"] = True
 with title_col:
