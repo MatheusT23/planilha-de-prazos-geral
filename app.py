@@ -636,7 +636,7 @@ with tab3:
             idx = st.text_input("idx", value=_text(row["idx"]) if row is not None else "")
             data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
             horario = st.text_input("horario", value=_text(row["horario"]) if row is not None else "")
-            status_options = ["Andamentos", "Já ocorreu", "Remarcada", "Cancelada"]
+            status_options = ["AVISADO", "JÁ OCORREU", "REMARCADA", "CANCELADA"]
             status_index = (
                 status_options.index(row["status"])
                 if row is not None and row["status"] in status_options
