@@ -636,7 +636,13 @@ with tab3:
             idx = st.text_input("idx", value=_text(row["idx"]) if row is not None else "")
             data = st.date_input("data", value=_to_date(row["data"]) if row is not None else None)
             horario = st.text_input("horario", value=_text(row["horario"]) if row is not None else "")
-            status = st.text_input("status", value=_text(row["status"]) if row is not None else "")
+            status_options = ["Andamentos", "Já ocorreu", "Remarcada", "Cancelada"]
+            status_index = (
+                status_options.index(row["status"])
+                if row is not None and row["status"] in status_options
+                else 0
+            )
+            status = st.selectbox("status", status_options, index=status_index)
             cliente = st.text_input("cliente", value=_text(row["cliente"]) if row is not None else "")
             cliente_avisado = st.text_input("cliente_avisado", value=_text(row["cliente_avisado"]) if row is not None else "")
             anotado_na_agenda = st.text_input("anotado_na_agenda", value=_text(row["anotado_na_agenda"]) if row is not None else "")
