@@ -52,6 +52,10 @@ STATUS_COLORS = {
     "correcao": "#ffe5b4",  # laranja claro
     "assinatura": "#ffe5b4",
     "correcao e assinatura": "#ffe5b4",
+    "avisado": "#d4edda",  # verde claro
+    "ja ocorreu": "#cce5ff",  # azul claro
+    "remarcada": "#e6ccff",  # roxo claro
+    "cancelada": "#f8d7da",  # vermelho claro
 }
 
 
@@ -85,7 +89,13 @@ def style_by_status(df: pd.DataFrame):
         if not color:
             return ["" for _ in row]
         style = f"background-color: {color};"
-        if color.lower() in ("#cce5ff", "#d4edda", "#fff3cd"):  # linhas com fundo azul, verde ou amarelo
+        if color.lower() in (
+            "#cce5ff",
+            "#d4edda",
+            "#fff3cd",
+            "#e6ccff",
+            "#f8d7da",
+        ):  # linhas com fundo azul, verde, amarelo, roxo ou vermelho claros
             style += " color: black;"
         return [style for _ in row]
 
