@@ -684,7 +684,7 @@ with tab2:
                         "resposta_do_colaborador": resposta_do_colaborador or None,
                         "observacoes": observacoes or None,
                     }
-                    if setor.strip().lower() == "livia":
+                    if setor.strip().lower() in {"livia", "financeiro", "setor financeiro"}:
                         _save_row(Financeiro, None, values)
                         if target is not None:
                             _delete_row(Publicacao, target)
