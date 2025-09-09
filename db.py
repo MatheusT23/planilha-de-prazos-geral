@@ -60,6 +60,21 @@ class Publicacao(Base):
     resposta_do_colaborador = Column(Text)
     observacoes = Column(Text)
 
+
+class Financeiro(Base):
+    __tablename__ = "financeiro"
+    id = Column(BigInteger, primary_key=True)
+    inicio_prazo = Column(Date)
+    fim_prazo = Column(Date)
+    dias_restantes = Column(Integer)
+    setor = Column(Text)
+    cliente = Column(Text)
+    processo = Column(Text, index=True)
+    para_ramon_e_adriana_despacharem = Column(Text)
+    status = Column(Text)
+    resposta_do_colaborador = Column(Text)
+    observacoes = Column(Text)
+
 class Agenda(Base):
     __tablename__ = "agenda"
     id = Column(BigInteger, primary_key=True)

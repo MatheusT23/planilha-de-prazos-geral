@@ -22,6 +22,7 @@ from db import (
     SessionLocal,
     Andamento,
     Publicacao,
+    Financeiro,
     Agenda,
     Concluida,
     LastChecked,
@@ -30,6 +31,7 @@ from db import (
 TABLE_MODELS = {
     "andamentos": Andamento,
     "publicacoes": Publicacao,
+    "financeiro": Financeiro,
     "agenda": Agenda,
     "concluidas": Concluida,
 }
@@ -139,6 +141,10 @@ def _load_tables():
     df2 = _calc_dias_restantes_df(df2)
     df2 = _coerce_dias(df2)
 
+    df_fin = pd.read_sql("select * from financeiro order by id desc", engine)
+    df_fin = _calc_dias_restantes_df(df_fin)
+    df_fin = _coerce_dias(df_fin)
+
     df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
 
     try:
@@ -149,7 +155,7 @@ def _load_tables():
         df4 = pd.read_sql("select * from concluidas order by id desc", engine)
         df4 = _calc_dias_restantes_df(df4)
         df4 = _coerce_dias(df4)
-    return df1, df2, df3, df4
+    return df1, df2, df_fin, df3, df4
 
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
 # Reduz espaço do cabeçalho para mostrar mais conteúdo principal
@@ -264,7 +270,7 @@ if refresh or "dfs_forms" not in st.session_state:
     _load_tables.clear()
     st.session_state["dfs_forms"] = _load_tables()
 
-df1, df2, df3, df4 = st.session_state["dfs_forms"]
+df1, df2, df_fin, df3, df4 = st.session_state["dfs_forms"]
 
 filtro_data = st.session_state.get("filter_date")
 if filtro_data:
@@ -278,7 +284,15 @@ if filtro_data:
     df2 = _filtrar_por_inicio(df2)
     df4 = _filtrar_por_inicio(df4)
 
-tab1, tab2, tab3, tab4 = st.tabs(["ANDAMENTOS", "PUBLICAÇÕES", "ANOTAR NA AGENDA E AVISAR", "CONCLUÍDAS"])
+df_pub = df2.copy()
+
+tab1, tab2, tab_fin, tab3, tab4 = st.tabs([
+    "ANDAMENTOS",
+    "PUBLICAÇÕES",
+    "FINANCEIRO E SOLICITAÇÃO DE DOCUMENTOS",
+    "ANOTAR NA AGENDA E AVISAR",
+    "CONCLUÍDAS",
+])
 
 # ---------- Helpers ----------
 def _to_date(v):
@@ -560,16 +574,16 @@ with tab2:
     left, right = st.columns([1.7, 0.7])
     with left:
         st.markdown("#### 📄 Visualização")
-        st.dataframe(style_by_status(df2), use_container_width=True, height=1000, hide_index=True)
-        _bulk_actions(df2, "publicacoes")
+        st.dataframe(style_by_status(df_pub), use_container_width=True, height=1000, hide_index=True)
+        _bulk_actions(df_pub, "publicacoes")
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
-        ids = df2["id"].tolist() if "id" in df2.columns else []
+        ids = df_pub["id"].tolist() if "id" in df_pub.columns else []
         escolha = st.selectbox("Selecione um ID para editar (ou deixe vazio para novo):",
                                options=["<novo>"] + ids, index=0, key="pub_select")
 
         target = None if escolha == "<novo>" else int(escolha)
-        row = _row_by_id(df2, target)
+        row = _row_by_id(df_pub, target)
 
         with st.form("form_publicacoes", clear_on_submit=False):
             inicio_prazo = st.date_input("inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None)
@@ -662,8 +676,14 @@ with tab2:
                         "resposta_do_colaborador": resposta_do_colaborador or None,
                         "observacoes": observacoes or None,
                     }
-                    _save_row(Publicacao, target, values)
-                    _reload("Salvo com sucesso.")
+                    if setor.strip().lower() == "livia":
+                        _save_row(Financeiro, None, values)
+                        if target is not None:
+                            _delete_row(Publicacao, target)
+                        _reload("Movido para Financeiro.")
+                    else:
+                        _save_row(Publicacao, target, values)
+                        _reload("Salvo com sucesso.")
             if concluded:
                 inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
                     inicio_prazo, fim_prazo, dias_restantes
@@ -685,6 +705,183 @@ with tab2:
                 _reload("Movido para Concluídas.")
             if deleted and target is not None:
                 _delete_row(Publicacao, target)
+                _reload("Excluído com sucesso.")
+
+# ---------- FINANCEIRO ----------
+with tab_fin:
+    left, right = st.columns([1.7, 0.7])
+    with left:
+        st.markdown("#### 📄 Visualização")
+        st.dataframe(style_by_status(df_fin), use_container_width=True, height=1000, hide_index=True)
+        _bulk_actions(df_fin, "financeiro")
+    with right:
+        st.markdown("#### ✏️ Editar / Solicitar")
+        ids = df_fin["id"].tolist() if "id" in df_fin.columns else []
+        escolha = st.selectbox(
+            "Selecione um ID para editar (ou deixe vazio para novo):",
+            options=["<novo>"] + ids,
+            index=0,
+            key="fin_select",
+        )
+
+        target = None if escolha == "<novo>" else int(escolha)
+        row = _row_by_id(df_fin, target)
+
+        with st.form("form_financeiro", clear_on_submit=False):
+            inicio_prazo = st.date_input(
+                "inicio_prazo", value=_to_date(row["inicio_prazo"]) if row is not None else None
+            )
+            fim_prazo = st.date_input(
+                "fim_prazo", value=_to_date(row["fim_prazo"]) if row is not None else None
+            )
+            dias_restantes = st.number_input(
+                "dias_restantes",
+                value=int(row["dias_restantes"]) if row is not None and not pd.isna(row["dias_restantes"]) else 0,
+                step=1,
+            )
+            cliente = st.text_input(
+                "cliente", value=_text(row["cliente"]) if row is not None else ""
+            )
+            processo = st.text_input(
+                "processo", value=_text(row["processo"]) if row is not None else ""
+            )
+            para_ramon_e_adriana_despacharem = st.text_input(
+                "para_ramon_e_adriana_despacharem",
+                value=_text(row["para_ramon_e_adriana_despacharem"]) if row is not None else "",
+            )
+            status_options = STATUS_OPTIONS
+            status_index = (
+                status_options.index(row["status"])
+                if row is not None and row["status"] in status_options
+                else 0
+            )
+            status = st.selectbox("status", status_options, index=status_index)
+            resposta_do_colaborador = st.text_input(
+                "resposta_do_colaborador",
+                value=_text(row["resposta_do_colaborador"]) if row is not None else "",
+            )
+            observacoes = st.text_area(
+                "observacoes",
+                value=_text(row["observacoes"]) if row is not None else "",
+                height=120,
+            )
+            col_save, col_mov_pub, col_mov_and, col_del, col_conc = st.columns([2, 2, 2, 1, 2.5])
+            with col_save:
+                submitted = st.form_submit_button("💾 Salvar", use_container_width=True)
+            with col_mov_pub:
+                move_pub = st.form_submit_button(
+                    "Mover para Publicações",
+                    use_container_width=True,
+                    disabled=target is None,
+                    key="fin_to_pub",
+                )
+            with col_mov_and:
+                move_and = st.form_submit_button(
+                    "Mover para Andamentos",
+                    use_container_width=True,
+                    disabled=target is None,
+                    key="fin_to_and",
+                )
+            with col_del:
+                deleted = st.form_submit_button(
+                    "🗑️ Excluir", use_container_width=True, disabled=target is None
+                )
+            with col_conc:
+                concluded = st.form_submit_button(
+                    "Marcar como Concluída",
+                    use_container_width=True,
+                    disabled=target is None,
+                    key="concl_financeiro",
+                )
+                st.markdown(
+                    """
+                    <style>
+                    button[data-testid=\"baseButton-concl_financeiro\"] {
+                        background-color: #90EE90;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            if submitted:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
+                values = {
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": "Lívia",
+                    "cliente": cliente or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
+                    "observacoes": observacoes or None,
+                }
+                _save_row(Financeiro, target, values)
+                _reload("Salvo com sucesso.")
+            if move_pub:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
+                values = {
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": "Tainá",
+                    "cliente": cliente or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
+                    "observacoes": observacoes or None,
+                }
+                _save_row(Publicacao, None, values)
+                if target is not None:
+                    _delete_row(Financeiro, target)
+                _reload("Movido para Publicações.")
+            if move_and:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
+                values = {
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": "Tainá",
+                    "cliente": cliente or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
+                    "observacoes": observacoes or None,
+                }
+                _save_row(Andamento, None, values)
+                if target is not None:
+                    _delete_row(Financeiro, target)
+                _reload("Movido para Andamentos.")
+            if concluded:
+                inicio_prazo, fim_prazo, dias_restantes = _apply_prazo_logic(
+                    inicio_prazo, fim_prazo, dias_restantes
+                )
+                values = {
+                    "inicio_prazo": inicio_prazo or None,
+                    "fim_prazo": fim_prazo or None,
+                    "dias_restantes": int(dias_restantes) if dias_restantes is not None else None,
+                    "setor": "Lívia",
+                    "cliente": cliente or None,
+                    "processo": processo or None,
+                    "para_ramon_e_adriana_despacharem": para_ramon_e_adriana_despacharem or None,
+                    "status": status or None,
+                    "resposta_do_colaborador": resposta_do_colaborador or None,
+                    "observacoes": observacoes or None,
+                }
+                _save_row(Financeiro, target, values)
+                _move_to_concluidas(Financeiro, target)
+                _reload("Movido para Concluídas.")
+            if deleted and target is not None:
+                _delete_row(Financeiro, target)
                 _reload("Excluído com sucesso.")
 
 # ---------- AGENDA ----------
