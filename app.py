@@ -27,6 +27,13 @@ from db import (
     LastChecked,
 )
 
+TABLE_MODELS = {
+    "andamentos": Andamento,
+    "publicacoes": Publicacao,
+    "agenda": Agenda,
+    "concluidas": Concluida,
+}
+
 # Opções fixas para o campo "status" em todos os formulários
 STATUS_OPTIONS = [
     "",
@@ -351,6 +358,57 @@ def _move_to_concluidas(model, rec_id: Optional[int]):
         db.query(model).filter(model.id == rec_id).delete()
         db.commit()
 
+def _delete_rows(model, ids):
+    if not ids:
+        return
+    with SessionLocal() as db:
+        db.query(model).filter(model.id.in_(ids)).delete(synchronize_session=False)
+        db.commit()
+
+
+def _move_rows(src_model, dst_model, ids):
+    if not ids:
+        return
+    with SessionLocal() as db:
+        src_cols = [c.name for c in inspect(src_model).columns]
+        dst_cols = [c.name for c in inspect(dst_model).columns]
+        common_cols = [c for c in src_cols if c in dst_cols and c != "id"]
+        rows = db.query(src_model).filter(src_model.id.in_(ids)).all()
+        for row in rows:
+            data = {col: getattr(row, col) for col in common_cols}
+            columns = ", ".join(common_cols)
+            placeholders = ", ".join(f":{col}" for col in common_cols)
+            db.execute(
+                text(
+                    f"INSERT INTO {dst_model.__tablename__} ({columns}) VALUES ({placeholders})"
+                ),
+                data,
+            )
+            db.delete(row)
+        db.commit()
+
+
+def _bulk_actions(df: pd.DataFrame, table_name: str):
+    ids = df["id"].dropna().astype(int).tolist() if "id" in df.columns else []
+    selected = st.multiselect(
+        "Selecionar IDs:", ids, key=f"bulk_select_{table_name}"
+    )
+    if not selected:
+        return
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🗑️ Excluir", key=f"bulk_delete_{table_name}"):
+            _delete_rows(TABLE_MODELS[table_name], selected)
+            _reload("Excluídos com sucesso.")
+    with col2:
+        options = [t for t in TABLE_MODELS.keys() if t != table_name]
+        target = st.selectbox(
+            "Mover para a tabela", options, key=f"bulk_move_sel_{table_name}"
+        )
+        if st.button("Mover", key=f"bulk_move_{table_name}"):
+            _move_rows(TABLE_MODELS[table_name], TABLE_MODELS[target], selected)
+            _reload(f"Movidos para {target}.")
+
 def _reload(msg: Optional[str] = None):
     try:
         _load_tables.clear()
@@ -371,6 +429,7 @@ with tab1:
     with left:
         st.markdown("#### 📄 Visualização")
         st.dataframe(style_by_status(df1), use_container_width=True, height=1000, hide_index=True)
+        _bulk_actions(df1, "andamentos")
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df1["id"].tolist() if "id" in df1.columns else []
@@ -502,6 +561,7 @@ with tab2:
     with left:
         st.markdown("#### 📄 Visualização")
         st.dataframe(style_by_status(df2), use_container_width=True, height=1000, hide_index=True)
+        _bulk_actions(df2, "publicacoes")
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df2["id"].tolist() if "id" in df2.columns else []
@@ -633,6 +693,7 @@ with tab3:
     with left:
         st.markdown("#### 📄 Visualização")
         st.dataframe(style_by_status(df3), use_container_width=True, height=1000, hide_index=True)
+        _bulk_actions(df3, "agenda")
     with right:
         st.markdown("#### ✏️ Editar / Adicionar")
         ids = df3["id"].tolist() if "id" in df3.columns else []
@@ -729,5 +790,6 @@ with tab3:
 with tab4:
     st.markdown("#### 📄 Visualização")
     st.dataframe(style_by_status(df4), use_container_width=True, height=1000, hide_index=True)
+    _bulk_actions(df4, "concluidas")
 
 st.caption("Dica: o modo formulário evita o rerun a cada tecla; os dados só mudam ao clicar Salvar.")
