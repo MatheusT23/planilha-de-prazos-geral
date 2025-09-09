@@ -484,12 +484,15 @@ with tab1:
                 value=_text(row["observacoes"]) if row is not None else "",
                 height=120,
             )
-            col_save, col_del, col_conc = st.columns([2.5, 1, 2.5])
-            with col_save:
+            col1, col2 = st.columns(2)
+            with col1:
                 submitted = st.form_submit_button("💾 Salvar ANDAMENTO", use_container_width=True)
-            with col_del:
-                deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
-            with col_conc:
+            with col2:
+                deleted = st.form_submit_button(
+                    "🗑️ Excluir", use_container_width=True, disabled=target is None
+                )
+            col3, _ = st.columns(2)
+            with col3:
                 concluded = st.form_submit_button(
                     "Marcar como Concluída",
                     use_container_width=True,
@@ -616,12 +619,17 @@ with tab2:
                 value=_text(row["observacoes"]) if row is not None else "",
                 height=120,
             )
-            col_save, col_del, col_conc = st.columns([2.5, 1, 2.5])
-            with col_save:
-                submitted = st.form_submit_button("💾 Salvar PUBLICAÇÃO", use_container_width=True)
-            with col_del:
-                deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
-            with col_conc:
+            col1, col2 = st.columns(2)
+            with col1:
+                submitted = st.form_submit_button(
+                    "💾 Salvar PUBLICAÇÃO", use_container_width=True
+                )
+            with col2:
+                deleted = st.form_submit_button(
+                    "🗑️ Excluir", use_container_width=True, disabled=target is None
+                )
+            col3, _ = st.columns(2)
+            with col3:
                 concluded = st.form_submit_button(
                     "Marcar como Concluída",
                     use_container_width=True,
@@ -765,28 +773,30 @@ with tab_fin:
                 value=_text(row["observacoes"]) if row is not None else "",
                 height=120,
             )
-            col_save, col_mov_pub, col_mov_and, col_del, col_conc = st.columns([2, 2, 2, 1, 2.5])
-            with col_save:
+            col1, col2 = st.columns(2)
+            with col1:
                 submitted = st.form_submit_button("💾 Salvar", use_container_width=True)
-            with col_mov_pub:
+            with col2:
                 move_pub = st.form_submit_button(
                     "Mover para Publicações",
                     use_container_width=True,
                     disabled=target is None,
                     key="fin_to_pub",
                 )
-            with col_mov_and:
+            col3, col4 = st.columns(2)
+            with col3:
                 move_and = st.form_submit_button(
                     "Mover para Andamentos",
                     use_container_width=True,
                     disabled=target is None,
                     key="fin_to_and",
                 )
-            with col_del:
+            with col4:
                 deleted = st.form_submit_button(
                     "🗑️ Excluir", use_container_width=True, disabled=target is None
                 )
-            with col_conc:
+            col5, _ = st.columns(2)
+            with col5:
                 concluded = st.form_submit_button(
                     "Marcar como Concluída",
                     use_container_width=True,
@@ -920,12 +930,15 @@ with tab3:
             materia = st.text_input("materia", value=_text(row["materia"]) if row is not None else "")
             parte_adversa = st.text_input("parte_adversa", value=_text(row["parte_adversa"]) if row is not None else "")
             sistema = st.text_input("sistema", value=_text(row["sistema"]) if row is not None else "")
-            col_save, col_del, col_conc = st.columns([2.5, 1, 2.5])
-            with col_save:
+            col1, col2 = st.columns(2)
+            with col1:
                 submitted = st.form_submit_button("💾 Salvar AGENDA", use_container_width=True)
-            with col_del:
-                deleted = st.form_submit_button("🗑️ Excluir", use_container_width=True, disabled=target is None)
-            with col_conc:
+            with col2:
+                deleted = st.form_submit_button(
+                    "🗑️ Excluir", use_container_width=True, disabled=target is None
+                )
+            col3, _ = st.columns(2)
+            with col3:
                 concluded = st.form_submit_button(
                     "Marcar como Concluída",
                     use_container_width=True,
