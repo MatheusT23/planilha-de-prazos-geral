@@ -328,6 +328,11 @@ def _apply_prazo_logic(inicio_prazo, fim_prazo, dias_restantes):
     return inicio_prazo, fim_prazo, dias_restantes
 
 def _save_row(model, rec_id: Optional[int], values: Dict[str, Any]):
+    if rec_id is None and "inicio_prazo" in values and values["inicio_prazo"] is None:
+        values["inicio_prazo"] = date.today()
+        values["inicio_prazo"], values["fim_prazo"], values["dias_restantes"] = _apply_prazo_logic(
+            values["inicio_prazo"], values.get("fim_prazo"), values.get("dias_restantes")
+        )
     with SessionLocal() as db:
         if rec_id is not None:
             db.query(model).filter(model.id == rec_id).update(values)
