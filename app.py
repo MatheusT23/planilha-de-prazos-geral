@@ -404,9 +404,24 @@ def _move_rows(src_model, dst_model, ids):
 
 def _bulk_actions(df: pd.DataFrame, table_name: str):
     ids = df["id"].dropna().astype(int).tolist() if "id" in df.columns else []
-    selected = st.multiselect(
-        "Selecionar IDs:", ids, key=f"bulk_select_{table_name}"
-    )
+    if "cliente" in df.columns:
+        id_to_cliente = (
+            df.dropna(subset=["id"])
+            .assign(id=lambda x: x["id"].astype(int))
+            .set_index("id")["cliente"]
+            .astype(str)
+            .to_dict()
+        )
+        selected = st.multiselect(
+            "Selecionar IDs:",
+            ids,
+            key=f"bulk_select_{table_name}",
+            format_func=lambda x: f"{x} - {id_to_cliente.get(x, '')}",
+        )
+    else:
+        selected = st.multiselect(
+            "Selecionar IDs:", ids, key=f"bulk_select_{table_name}"
+        )
     if not selected:
         return
     col1, col2 = st.columns(2)
