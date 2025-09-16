@@ -27,6 +27,11 @@ from db import (
     Concluida,
     LastChecked,
 )
+from calendar_integration import (
+    delete_agenda_event,
+    delete_agenda_events,
+    sync_agenda_event,
+)
 
 TABLE_MODELS = {
     "andamentos": Andamento,
@@ -87,6 +92,16 @@ def _detect_audiencia_pericia(text: Any) -> Optional[str]:
     if "pericia" in val:
         return "Perícia"
     return None
+
+
+def _show_calendar_warning(message: Optional[str]) -> None:
+    if not message:
+        return
+    warnings = st.session_state.setdefault("__calendar_warnings", [])
+    if message in warnings:
+        return
+    warnings.append(message)
+    st.warning(message)
 
 
 def style_by_status(df: pd.DataFrame):
@@ -333,12 +348,37 @@ def _save_row(model, rec_id: Optional[int], values: Dict[str, Any]):
         values["inicio_prazo"], values["fim_prazo"], values["dias_restantes"] = _apply_prazo_logic(
             values["inicio_prazo"], values.get("fim_prazo"), values.get("dias_restantes")
         )
+    calendar_payload: Optional[Dict[str, Any]] = None
+    new_id: Optional[int] = rec_id
     with SessionLocal() as db:
         if rec_id is not None:
             db.query(model).filter(model.id == rec_id).update(values)
+            db.commit()
+            new_id = rec_id
+            if model is Agenda:
+                record = db.query(Agenda).filter(Agenda.id == rec_id).first()
+                if record is not None:
+                    calendar_payload = {
+                        k: v for k, v in record.__dict__.items() if not k.startswith("_")
+                    }
         else:
-            db.add(model(**values))
-        db.commit()
+            record = model(**values)
+            db.add(record)
+            db.commit()
+            try:
+                db.refresh(record)
+            except Exception:
+                pass
+            new_id = getattr(record, "id", None)
+            if model is Agenda:
+                calendar_payload = {
+                    k: v for k, v in record.__dict__.items() if not k.startswith("_")
+                }
+    if model is Agenda and new_id is not None and calendar_payload:
+        success, message = sync_agenda_event(int(new_id), calendar_payload)
+        if not success:
+            _show_calendar_warning(message)
+    return new_id
 
 def _delete_row(model, rec_id: Optional[int]):
     if rec_id is None:
@@ -346,6 +386,10 @@ def _delete_row(model, rec_id: Optional[int]):
     with SessionLocal() as db:
         db.query(model).filter(model.id == rec_id).delete()
         db.commit()
+    if model is Agenda:
+        success, message = delete_agenda_event(int(rec_id))
+        if not success:
+            _show_calendar_warning(message)
 
 
 def _move_to_concluidas(model, rec_id: Optional[int]):
@@ -376,6 +420,10 @@ def _move_to_concluidas(model, rec_id: Optional[int]):
         db.execute(text(f"INSERT INTO concluidas ({columns}) VALUES ({placeholders})"), filtered)
         db.query(model).filter(model.id == rec_id).delete()
         db.commit()
+    if model is Agenda:
+        success, message = delete_agenda_event(int(rec_id))
+        if not success:
+            _show_calendar_warning(message)
 
 def _delete_rows(model, ids):
     if not ids:
@@ -383,11 +431,17 @@ def _delete_rows(model, ids):
     with SessionLocal() as db:
         db.query(model).filter(model.id.in_(ids)).delete(synchronize_session=False)
         db.commit()
+    if model is Agenda:
+        agenda_ids = [int(i) for i in ids]
+        success, message = delete_agenda_events(agenda_ids)
+        if not success:
+            _show_calendar_warning(message)
 
 
 def _move_rows(src_model, dst_model, ids):
     if not ids:
         return
+    agenda_ids_to_remove = []
     with SessionLocal() as db:
         src_cols = [c.name for c in inspect(src_model).columns]
         dst_cols = [c.name for c in inspect(dst_model).columns]
@@ -395,16 +449,18 @@ def _move_rows(src_model, dst_model, ids):
         rows = db.query(src_model).filter(src_model.id.in_(ids)).all()
         for row in rows:
             data = {col: getattr(row, col) for col in common_cols}
-            columns = ", ".join(common_cols)
-            placeholders = ", ".join(f":{col}" for col in common_cols)
-            db.execute(
-                text(
-                    f"INSERT INTO {dst_model.__tablename__} ({columns}) VALUES ({placeholders})"
-                ),
-                data,
-            )
+            _save_row(dst_model, None, data)
+            if src_model is Agenda:
+                try:
+                    agenda_ids_to_remove.append(int(getattr(row, "id")))
+                except (TypeError, ValueError):
+                    pass
             db.delete(row)
         db.commit()
+    if agenda_ids_to_remove:
+        success, message = delete_agenda_events(agenda_ids_to_remove)
+        if not success:
+            _show_calendar_warning(message)
 
 
 def _bulk_actions(df: pd.DataFrame, table_name: str):
