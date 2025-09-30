@@ -260,7 +260,7 @@ class AgendaCalendarClient:
             _coerce_str(
                 _get_config_value(["GOOGLE_CALENDAR_ID", "CALENDAR_ID", "CALENDAR"])
             )
-            or "primary"
+            or "mtsilva2303@gmail.com"
         )
 
     def _ensure_service(self):
