@@ -66,6 +66,11 @@ _OAUTH_CLIENT_FILE_KEYS = [
     "GOOGLE_CALENDAR_CLIENT_FILE",
 ]
 _SECTION_KEYS = ("google_calendar", "GOOGLE_CALENDAR")
+_CALENDAR_NAME_KEYS = [
+    "GOOGLE_CALENDAR_NAME",
+    "CALENDAR_NAME",
+    "CALENDAR_SUMMARY",
+]
 _TIME_PATTERN = re.compile(r"(\d{1,2})(?:[:hH](\d{2}))?")
 
 
@@ -262,10 +267,51 @@ class AgendaCalendarClient:
             )
             or "mtsilva2303@gmail.com"
         )
+        self._calendar_name = _coerce_str(_get_config_value(_CALENDAR_NAME_KEYS))
+        self._calendar_initialized = False
+
+    def _ensure_calendar_initialized(self, service) -> bool:
+        if self._calendar_initialized:
+            return True
+        if not self._calendar_name:
+            self._calendar_initialized = True
+            return True
+        try:
+            target_name = self._calendar_name.casefold()
+            page_token: Optional[str] = None
+            while True:
+                request = service.calendarList().list(pageToken=page_token)
+                response = request.execute()
+                for item in response.get("items", []):
+                    summary = _coerce_str(item.get("summary"))
+                    summary_override = _coerce_str(item.get("summaryOverride"))
+                    candidates = [summary, summary_override]
+                    for candidate in candidates:
+                        if candidate and candidate.casefold() == target_name:
+                            self._calendar_id = _coerce_str(item.get("id")) or self._calendar_id
+                            self._calendar_initialized = True
+                            return True
+                page_token = response.get("nextPageToken")
+                if not page_token:
+                    break
+            self._last_error = (
+                f"Calendário '{self._calendar_name}' não foi encontrado na conta configurada."
+            )
+            return False
+        except HttpError as exc:  # pragma: no cover - depende da API externa
+            logger.warning("Falha ao localizar calendário configurado", exc_info=exc)
+            message = getattr(exc, "error_details", None) or getattr(exc, "message", str(exc))
+            self._last_error = (
+                "Não foi possível localizar o calendário configurado: "
+                f"{message}"
+            )
+            return False
 
     def _ensure_service(self):
         if self._service is not None:
-            return self._service
+            if self._ensure_calendar_initialized(self._service):
+                return self._service
+            return None
         if not _GOOGLE_LIBS_AVAILABLE:
             self._last_error = (
                 "Bibliotecas do Google não instaladas. Adicione 'google-api-python-client'."
@@ -284,8 +330,11 @@ class AgendaCalendarClient:
                 )
                 if delegate:
                     creds = creds.with_subject(delegate)
-                self._service = build("calendar", "v3", credentials=creds, cache_discovery=False)
-                return self._service
+                service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+                if self._ensure_calendar_initialized(service):
+                    self._service = service
+                    return self._service
+                return None
             except Exception as exc:  # pragma: no cover - dependente do ambiente
                 logger.exception("Erro ao inicializar integração com Google Calendar", exc_info=exc)
                 self._last_error = f"Falha ao iniciar integração com Google Calendar: {exc}"
@@ -299,8 +348,11 @@ class AgendaCalendarClient:
         try:
             if Request is not None and oauth_creds.refresh_token and not oauth_creds.valid:
                 oauth_creds.refresh(Request())
-            self._service = build("calendar", "v3", credentials=oauth_creds, cache_discovery=False)
-            return self._service
+            service = build("calendar", "v3", credentials=oauth_creds, cache_discovery=False)
+            if self._ensure_calendar_initialized(service):
+                self._service = service
+                return self._service
+            return None
         except Exception as exc:  # pragma: no cover - dependente do ambiente
             logger.exception("Erro ao inicializar integração com Google Calendar via OAuth", exc_info=exc)
             self._last_error = f"Falha ao iniciar integração com Google Calendar via OAuth: {exc}"
