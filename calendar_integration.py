@@ -1,6 +1,7 @@
 """Integração com Google Calendar usando a biblioteca `gcsa`."""
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import os
@@ -335,11 +336,56 @@ class AgendaCalendarClient:
         if credentials is None:
             return None
         try:
-            calendar = GoogleCalendar(
-                calendar=self._calendar_id,
-                credentials=credentials,
-                timezone=self._timezone,
-            )
+            init_args = []
+            init_kwargs: Dict[str, Any] = {}
+            try:
+                signature = inspect.signature(GoogleCalendar.__init__)
+                parameters = {
+                    name: param
+                    for name, param in signature.parameters.items()
+                    if name != "self"
+                }
+            except (TypeError, ValueError):
+                parameters = {}
+            candidate_values: Dict[str, Any] = {
+                "calendar": self._calendar_id,
+                "calendar_id": self._calendar_id,
+                "default_calendar": self._calendar_id,
+                "credentials": credentials,
+                "timezone": self._timezone,
+            }
+            provided_keys = set()
+            for name, param in parameters.items():
+                if name not in candidate_values:
+                    continue
+                value = candidate_values[name]
+                provided_keys.add(name)
+                if param.kind is inspect.Parameter.POSITIONAL_ONLY:
+                    init_args.append(value)
+                elif param.kind is inspect.Parameter.VAR_POSITIONAL:
+                    init_args.append(value)
+                else:
+                    init_kwargs[name] = value
+
+            if not provided_keys.intersection({"calendar", "calendar_id", "default_calendar"}):
+                if parameters:
+                    first_param = next(iter(parameters.values()))
+                    if first_param.kind in (
+                        inspect.Parameter.POSITIONAL_ONLY,
+                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    ):
+                        init_args.insert(0, self._calendar_id)
+                else:
+                    init_args.append(self._calendar_id)
+
+            try:
+                calendar = GoogleCalendar(*init_args, **init_kwargs)
+            except TypeError:
+                if "timezone" in init_kwargs and "timezone" not in parameters:
+                    init_kwargs.pop("timezone", None)
+                    calendar = GoogleCalendar(*init_args, **init_kwargs)
+                else:
+                    raise
             self._calendar = calendar
             return calendar
         except Exception as exc:  # pragma: no cover - dependente do ambiente
