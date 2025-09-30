@@ -1,4 +1,4 @@
-"""Integração com Google Calendar para sincronizar registros da tabela Agenda."""
+"""Integração com Google Calendar usando a biblioteca `gcsa`."""
 from __future__ import annotations
 
 import json
@@ -9,26 +9,34 @@ from collections.abc import Iterable, Mapping
 from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, Optional, Tuple
 
-try:
+try:  # pragma: no cover - dependente das libs opcionais
     from google.auth.transport.requests import Request
     from google.oauth2 import service_account
     from google.oauth2.credentials import Credentials as UserCredentials
-    from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
 
-    _GOOGLE_LIBS_AVAILABLE = True
+    _GOOGLE_AUTH_AVAILABLE = True
 except Exception:  # pragma: no cover - módulo opcional
     Request = None  # type: ignore[assignment]
     service_account = None  # type: ignore[assignment]
     UserCredentials = None  # type: ignore[assignment]
-    build = None  # type: ignore[assignment]
-    HttpError = Exception  # type: ignore[assignment]
-    _GOOGLE_LIBS_AVAILABLE = False
+    _GOOGLE_AUTH_AVAILABLE = False
+
+try:  # pragma: no cover - biblioteca opcional
+    from gcsa.event import Event
+    from gcsa.google_calendar import GoogleCalendar
+
+    _GCSA_AVAILABLE = True
+except Exception:  # pragma: no cover - biblioteca opcional
+    Event = None  # type: ignore[assignment]
+    GoogleCalendar = None  # type: ignore[assignment]
+    _GCSA_AVAILABLE = False
 
 try:  # pragma: no cover - streamlit pode não estar disponível em testes
     import streamlit as st
 except Exception:  # pragma: no cover - streamlit não é obrigatório aqui
     st = None  # type: ignore[assignment]
+
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +74,6 @@ _OAUTH_CLIENT_FILE_KEYS = [
     "GOOGLE_CALENDAR_CLIENT_FILE",
 ]
 _SECTION_KEYS = ("google_calendar", "GOOGLE_CALENDAR")
-_CALENDAR_NAME_KEYS = [
-    "GOOGLE_CALENDAR_NAME",
-    "CALENDAR_NAME",
-    "CALENDAR_SUMMARY",
-]
 _TIME_PATTERN = re.compile(r"(\d{1,2})(?:[:hH](\d{2}))?")
 
 
@@ -138,7 +141,7 @@ def _load_service_account_info() -> Optional[Dict[str, Any]]:
 
 
 def _load_oauth_credentials() -> Optional[UserCredentials]:
-    if not _GOOGLE_LIBS_AVAILABLE or UserCredentials is None:
+    if not _GOOGLE_AUTH_AVAILABLE or UserCredentials is None:
         return None
     token_info = _coerce_mapping(_get_config_value(_OAUTH_TOKEN_KEYS))
     if not token_info:
@@ -253,91 +256,49 @@ def _coerce_str(value: Any) -> Optional[str]:
 
 class AgendaCalendarClient:
     def __init__(self) -> None:
-        self._service = None
+        self._calendar: Optional[GoogleCalendar] = None
         self._last_error: Optional[str] = None
-        self._timezone = (
-            _coerce_str(
-                _get_config_value(["GOOGLE_CALENDAR_TIMEZONE", "CALENDAR_TIMEZONE"])
-            )
-            or DEFAULT_TIMEZONE
-        )
-        self._calendar_id = (
-            _coerce_str(
-                _get_config_value(["GOOGLE_CALENDAR_ID", "CALENDAR_ID", "CALENDAR"])
-            )
-            or "mtsilva2303@gmail.com"
-        )
-        self._calendar_name = _coerce_str(_get_config_value(_CALENDAR_NAME_KEYS))
-        self._calendar_initialized = False
-
-    def _ensure_calendar_initialized(self, service) -> bool:
-        if self._calendar_initialized:
-            return True
-        if not self._calendar_name:
-            self._calendar_initialized = True
-            return True
+        self._timezone = _coerce_str(
+            _get_config_value(["GOOGLE_CALENDAR_TIMEZONE", "CALENDAR_TIMEZONE"])
+        ) or DEFAULT_TIMEZONE
+        self._calendar_id = _coerce_str(
+            _get_config_value(["GOOGLE_CALENDAR_ID", "CALENDAR_ID", "CALENDAR"])
+        ) or "primary"
+        self._tzinfo: Optional[ZoneInfo]
         try:
-            target_name = self._calendar_name.casefold()
-            page_token: Optional[str] = None
-            while True:
-                request = service.calendarList().list(pageToken=page_token)
-                response = request.execute()
-                for item in response.get("items", []):
-                    summary = _coerce_str(item.get("summary"))
-                    summary_override = _coerce_str(item.get("summaryOverride"))
-                    candidates = [summary, summary_override]
-                    for candidate in candidates:
-                        if candidate and candidate.casefold() == target_name:
-                            self._calendar_id = _coerce_str(item.get("id")) or self._calendar_id
-                            self._calendar_initialized = True
-                            return True
-                page_token = response.get("nextPageToken")
-                if not page_token:
-                    break
-            self._last_error = (
-                f"Calendário '{self._calendar_name}' não foi encontrado na conta configurada."
+            self._tzinfo = ZoneInfo(self._timezone)
+        except ZoneInfoNotFoundError:
+            logger.warning(
+                "Timezone '%s' não encontrada. Eventos serão criados sem informação de timezone.",
+                self._timezone,
             )
-            return False
-        except HttpError as exc:  # pragma: no cover - depende da API externa
-            logger.warning("Falha ao localizar calendário configurado", exc_info=exc)
-            message = getattr(exc, "error_details", None) or getattr(exc, "message", str(exc))
-            self._last_error = (
-                "Não foi possível localizar o calendário configurado: "
-                f"{message}"
-            )
-            return False
+            self._tzinfo = None
 
-    def _ensure_service(self):
-        if self._service is not None:
-            if self._ensure_calendar_initialized(self._service):
-                return self._service
-            return None
-        if not _GOOGLE_LIBS_AVAILABLE:
-            self._last_error = (
-                "Bibliotecas do Google não instaladas. Adicione 'google-api-python-client'."
-            )
-            return None
+    def _build_credentials(self):
         info = _load_service_account_info()
         if info and service_account is not None:
             try:
-                creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)  # type: ignore[arg-type]
+                creds = service_account.Credentials.from_service_account_info(
+                    info, scopes=SCOPES  # type: ignore[arg-type]
+                )
                 delegate = _coerce_str(
-                    _get_config_value([
-                        "GOOGLE_CALENDAR_DELEGATE",
-                        "GOOGLE_CALENDAR_SUBJECT",
-                        "CALENDAR_DELEGATE",
-                    ])
+                    _get_config_value(
+                        [
+                            "GOOGLE_CALENDAR_DELEGATE",
+                            "GOOGLE_CALENDAR_SUBJECT",
+                            "CALENDAR_DELEGATE",
+                        ]
+                    )
                 )
                 if delegate:
                     creds = creds.with_subject(delegate)
-                service = build("calendar", "v3", credentials=creds, cache_discovery=False)
-                if self._ensure_calendar_initialized(service):
-                    self._service = service
-                    return self._service
-                return None
+                return creds
             except Exception as exc:  # pragma: no cover - dependente do ambiente
-                logger.exception("Erro ao inicializar integração com Google Calendar", exc_info=exc)
-                self._last_error = f"Falha ao iniciar integração com Google Calendar: {exc}"
+                logger.exception(
+                    "Erro ao carregar credenciais do service account para o Google Calendar",
+                    exc_info=exc,
+                )
+                self._last_error = f"Falha ao carregar credenciais do service account: {exc}"
                 return None
         oauth_creds = _load_oauth_credentials()
         if oauth_creds is None:
@@ -345,85 +306,115 @@ class AgendaCalendarClient:
                 "Credenciais do Google Calendar não configuradas. Informe o JSON do service account ou as credenciais OAuth."
             )
             return None
-        try:
-            if Request is not None and oauth_creds.refresh_token and not oauth_creds.valid:
+        if (
+            Request is not None
+            and oauth_creds.refresh_token
+            and not oauth_creds.valid
+        ):
+            try:  # pragma: no cover - dependente de refresh externo
                 oauth_creds.refresh(Request())
-            service = build("calendar", "v3", credentials=oauth_creds, cache_discovery=False)
-            if self._ensure_calendar_initialized(service):
-                self._service = service
-                return self._service
+            except Exception as exc:
+                logger.warning(
+                    "Falha ao renovar token OAuth do Google Calendar", exc_info=exc
+                )
+                self._last_error = (
+                    "Não foi possível renovar o token OAuth do Google Calendar."
+                )
+                return None
+        return oauth_creds
+
+    def _ensure_calendar(self) -> Optional[GoogleCalendar]:
+        if self._calendar is not None:
+            return self._calendar
+        if not _GCSA_AVAILABLE or GoogleCalendar is None:
+            self._last_error = (
+                "Biblioteca 'gcsa' não está instalada. Adicione 'gcsa' às dependências."
+            )
             return None
+        credentials = self._build_credentials()
+        if credentials is None:
+            return None
+        try:
+            calendar = GoogleCalendar(
+                calendar=self._calendar_id,
+                credentials=credentials,
+                timezone=self._timezone,
+            )
+            self._calendar = calendar
+            return calendar
         except Exception as exc:  # pragma: no cover - dependente do ambiente
-            logger.exception("Erro ao inicializar integração com Google Calendar via OAuth", exc_info=exc)
-            self._last_error = f"Falha ao iniciar integração com Google Calendar via OAuth: {exc}"
+            logger.exception(
+                "Erro ao inicializar integração com Google Calendar (gcsa)",
+                exc_info=exc,
+            )
+            self._last_error = (
+                "Falha ao iniciar integração com Google Calendar usando gcsa: "
+                f"{exc}"
+            )
             return None
 
     def sync_event(self, record_id: int, data: Mapping[str, Any]) -> Tuple[bool, Optional[str]]:
-        service = self._ensure_service()
-        if not service:
+        calendar = self._ensure_calendar()
+        if not calendar:
             return False, self._last_error
         event_date = _ensure_date(data.get("data"))
         if not event_date:
             return False, "Registro da agenda sem data. Evento não sincronizado."
         horario = _coerce_str(data.get("horario"))
         start, end, is_all_day = _compute_event_times(event_date, horario)
+        if not is_all_day and self._tzinfo is not None:
+            start = start.replace(tzinfo=self._tzinfo)
+            end = end.replace(tzinfo=self._tzinfo)
         summary = self._build_summary(data)
         description = self._build_description(data, record_id)
-        event_body: Dict[str, Any] = {
-            "summary": summary,
-            "description": description,
-            "extendedProperties": {
-                "private": {"agenda_record_id": str(record_id)}
-            },
-        }
-        if is_all_day:
-            event_body["start"] = {"date": start.isoformat(), "timeZone": self._timezone}
-            event_body["end"] = {"date": end.isoformat(), "timeZone": self._timezone}
-        else:
-            event_body["start"] = {"dateTime": start.isoformat(), "timeZone": self._timezone}
-            event_body["end"] = {"dateTime": end.isoformat(), "timeZone": self._timezone}
         location = _coerce_str(data.get("materia"))
+        event_kwargs: Dict[str, Any] = {
+            "summary": summary,
+            "start": start,
+            "end": end,
+            "description": description,
+            "extended_properties": {"private": {"agenda_record_id": str(record_id)}},
+        }
         if location:
-            event_body["location"] = location
+            event_kwargs["location"] = location
+        if not is_all_day and self._tzinfo is None:
+            event_kwargs["timezone"] = self._timezone
         try:
-            existing = self._find_existing_event(service, record_id)
+            event = Event(**event_kwargs)
+        except Exception as exc:  # pragma: no cover - depende da lib externa
+            logger.exception("Erro ao construir evento para o Google Calendar", exc_info=exc)
+            return False, f"Não foi possível construir evento para o Google Calendar: {exc}"
+        try:
+            existing = self._find_existing_event(calendar, record_id)
             if existing:
-                service.events().update(
-                    calendarId=self._calendar_id,
-                    eventId=existing["id"],
-                    body=event_body,
-                ).execute()
+                event.event_id = existing.event_id
+                calendar.update_event(event)
             else:
-                service.events().insert(
-                    calendarId=self._calendar_id,
-                    body=event_body,
-                ).execute()
+                calendar.add_event(event)
             return True, None
-        except HttpError as exc:  # pragma: no cover - depende da API externa
+        except Exception as exc:  # pragma: no cover - depende da API externa
             logger.warning("Falha ao sincronizar evento no Google Calendar", exc_info=exc)
-            message = getattr(exc, "error_details", None) or getattr(exc, "message", str(exc))
-            if hasattr(exc, "resp") and getattr(exc.resp, "status", None) == 404:
-                return False, "Calendário informado não foi encontrado."
-            return False, f"Não foi possível sincronizar com o Google Calendar: {message}"
+            return False, (
+                "Não foi possível sincronizar com o Google Calendar usando gcsa: "
+                f"{exc}"
+            )
 
     def delete_event(self, record_id: int) -> Tuple[bool, Optional[str]]:
-        service = self._ensure_service()
-        if not service:
+        calendar = self._ensure_calendar()
+        if not calendar:
             return False, self._last_error
         try:
-            existing = self._find_existing_event(service, record_id)
+            existing = self._find_existing_event(calendar, record_id)
             if not existing:
                 return True, None
-            service.events().delete(
-                calendarId=self._calendar_id, eventId=existing["id"]
-            ).execute()
+            calendar.delete_event(existing.event_id)
             return True, None
-        except HttpError as exc:  # pragma: no cover - depende da API externa
-            if hasattr(exc, "resp") and getattr(exc.resp, "status", None) == 404:
-                return True, None
+        except Exception as exc:  # pragma: no cover - depende da API externa
             logger.warning("Falha ao remover evento do Google Calendar", exc_info=exc)
-            message = getattr(exc, "error_details", None) or getattr(exc, "message", str(exc))
-            return False, f"Não foi possível remover o evento do Google Calendar: {message}"
+            return False, (
+                "Não foi possível remover o evento do Google Calendar usando gcsa: "
+                f"{exc}"
+            )
 
     def delete_events(self, record_ids: Iterable[int]) -> Tuple[bool, Optional[str]]:
         any_failure = False
@@ -437,24 +428,20 @@ class AgendaCalendarClient:
             return False, last_message
         return True, None
 
-    def _find_existing_event(self, service, record_id: int) -> Optional[Dict[str, Any]]:
+    def _find_existing_event(
+        self, calendar: GoogleCalendar, record_id: int
+    ) -> Optional[Event]:
         try:
-            response = (
-                service.events()
-                .list(
-                    calendarId=self._calendar_id,
-                    maxResults=1,
-                    privateExtendedProperty=f"agenda_record_id={record_id}",
-                    showDeleted=True,
-                    singleEvents=True,
-                )
-                .execute()
+            events = calendar.get_events(
+                private_extended_property=f"agenda_record_id={record_id}",
+                max_results=1,
+                single_events=True,
+                show_deleted=True,
             )
-            items = response.get("items", [])
-            if items:
-                return items[0]
-        except HttpError as exc:  # pragma: no cover - depende da API externa
-            logger.debug("Erro ao buscar evento existente", exc_info=exc)
+            for event in events:
+                return event
+        except Exception:  # pragma: no cover - depende da API externa
+            logger.debug("Erro ao buscar evento existente no Google Calendar", exc_info=True)
         return None
 
     def _build_summary(self, data: Mapping[str, Any]) -> str:
