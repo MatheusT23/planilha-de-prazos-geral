@@ -10,13 +10,17 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, Optional, Tuple
 
 try:
+    from google.auth.transport.requests import Request
     from google.oauth2 import service_account
+    from google.oauth2.credentials import Credentials as UserCredentials
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
 
     _GOOGLE_LIBS_AVAILABLE = True
 except Exception:  # pragma: no cover - módulo opcional
+    Request = None  # type: ignore[assignment]
     service_account = None  # type: ignore[assignment]
+    UserCredentials = None  # type: ignore[assignment]
     build = None  # type: ignore[assignment]
     HttpError = Exception  # type: ignore[assignment]
     _GOOGLE_LIBS_AVAILABLE = False
@@ -42,6 +46,24 @@ _SERVICE_ACCOUNT_KEYS = [
 _SERVICE_ACCOUNT_FILE_KEYS = [
     "GOOGLE_CALENDAR_SERVICE_ACCOUNT_FILE",
     "GOOGLE_APPLICATION_CREDENTIALS",
+]
+_OAUTH_TOKEN_KEYS = [
+    "GOOGLE_CALENDAR_OAUTH_TOKEN",
+    "GOOGLE_CALENDAR_USER_TOKEN",
+    "GOOGLE_CALENDAR_CREDENTIALS_JSON",
+]
+_OAUTH_TOKEN_FILE_KEYS = [
+    "GOOGLE_CALENDAR_OAUTH_TOKEN_FILE",
+    "GOOGLE_CALENDAR_USER_TOKEN_FILE",
+]
+_OAUTH_CLIENT_KEYS = [
+    "GOOGLE_CALENDAR_OAUTH_CLIENT",
+    "GOOGLE_CALENDAR_CLIENT",
+    "GOOGLE_CALENDAR_CLIENT_JSON",
+]
+_OAUTH_CLIENT_FILE_KEYS = [
+    "GOOGLE_CALENDAR_OAUTH_CLIENT_FILE",
+    "GOOGLE_CALENDAR_CLIENT_FILE",
 ]
 _SECTION_KEYS = ("google_calendar", "GOOGLE_CALENDAR")
 _TIME_PATTERN = re.compile(r"(\d{1,2})(?:[:hH](\d{2}))?")
@@ -108,6 +130,46 @@ def _load_service_account_info() -> Optional[Dict[str, Any]]:
     if info:
         return info
     return None
+
+
+def _load_oauth_credentials() -> Optional[UserCredentials]:
+    if not _GOOGLE_LIBS_AVAILABLE or UserCredentials is None:
+        return None
+    token_info = _coerce_mapping(_get_config_value(_OAUTH_TOKEN_KEYS))
+    if not token_info:
+        token_info = _coerce_mapping(_get_config_value(_OAUTH_TOKEN_FILE_KEYS))
+    if not token_info:
+        token_info = _coerce_mapping(_get_config_value(_OAUTH_CLIENT_KEYS))
+    if not token_info:
+        token_info = _coerce_mapping(_get_config_value(_OAUTH_CLIENT_FILE_KEYS))
+    if not token_info:
+        return None
+    token = _coerce_str(token_info.get("token")) or _coerce_str(
+        token_info.get("access_token")
+    )
+    refresh_token = _coerce_str(token_info.get("refresh_token"))
+    client_id = _coerce_str(token_info.get("client_id"))
+    client_secret = _coerce_str(token_info.get("client_secret"))
+    token_uri = _coerce_str(token_info.get("token_uri")) or "https://oauth2.googleapis.com/token"
+    if not client_id or not client_secret or not refresh_token:
+        return None
+    creds = UserCredentials(
+        token=token,
+        refresh_token=refresh_token,
+        token_uri=token_uri,
+        client_id=client_id,
+        client_secret=client_secret,
+        scopes=SCOPES,
+    )
+    expiry = _coerce_str(token_info.get("expiry")) or _coerce_str(
+        token_info.get("expires_at")
+    )
+    if expiry:
+        try:
+            creds.expiry = datetime.fromisoformat(expiry)
+        except ValueError:
+            pass
+    return creds
 
 
 def _clean_text(value: Any) -> str:
@@ -210,27 +272,38 @@ class AgendaCalendarClient:
             )
             return None
         info = _load_service_account_info()
-        if not info:
+        if info and service_account is not None:
+            try:
+                creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)  # type: ignore[arg-type]
+                delegate = _coerce_str(
+                    _get_config_value([
+                        "GOOGLE_CALENDAR_DELEGATE",
+                        "GOOGLE_CALENDAR_SUBJECT",
+                        "CALENDAR_DELEGATE",
+                    ])
+                )
+                if delegate:
+                    creds = creds.with_subject(delegate)
+                self._service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+                return self._service
+            except Exception as exc:  # pragma: no cover - dependente do ambiente
+                logger.exception("Erro ao inicializar integração com Google Calendar", exc_info=exc)
+                self._last_error = f"Falha ao iniciar integração com Google Calendar: {exc}"
+                return None
+        oauth_creds = _load_oauth_credentials()
+        if oauth_creds is None:
             self._last_error = (
-                "Credenciais do Google Calendar não configuradas. Informe o JSON do service account."
+                "Credenciais do Google Calendar não configuradas. Informe o JSON do service account ou as credenciais OAuth."
             )
             return None
         try:
-            creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)  # type: ignore[arg-type]
-            delegate = _coerce_str(
-                _get_config_value([
-                    "GOOGLE_CALENDAR_DELEGATE",
-                    "GOOGLE_CALENDAR_SUBJECT",
-                    "CALENDAR_DELEGATE",
-                ])
-            )
-            if delegate:
-                creds = creds.with_subject(delegate)
-            self._service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+            if Request is not None and oauth_creds.refresh_token and not oauth_creds.valid:
+                oauth_creds.refresh(Request())
+            self._service = build("calendar", "v3", credentials=oauth_creds, cache_discovery=False)
             return self._service
         except Exception as exc:  # pragma: no cover - dependente do ambiente
-            logger.exception("Erro ao inicializar integração com Google Calendar", exc_info=exc)
-            self._last_error = f"Falha ao iniciar integração com Google Calendar: {exc}"
+            logger.exception("Erro ao inicializar integração com Google Calendar via OAuth", exc_info=exc)
+            self._last_error = f"Falha ao iniciar integração com Google Calendar via OAuth: {exc}"
             return None
 
     def sync_event(self, record_id: int, data: Mapping[str, Any]) -> Tuple[bool, Optional[str]]:
