@@ -256,7 +256,7 @@ class CalendarService:
 
         try:
             calendar = GoogleCalendar(
-                calendar=self._calendar_id,
+                default_calendar=self._calendar_id,
                 credentials=credentials,
             )
         except Exception as exc:  # pragma: no cover - depende da API externa
