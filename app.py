@@ -535,7 +535,7 @@ def _reload(msg: Optional[str] = None):
         _load_tables.clear()
     except Exception:
         pass
-    st.session_state["dfs_forms"] = _load_tables()
+    st.session_state["dfs_forms"] = _load_tables(st.session_state.get("load_limit"))
     if msg:
         st.session_state["__last_msg"] = msg
     try:
