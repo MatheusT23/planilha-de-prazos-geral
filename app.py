@@ -142,32 +142,38 @@ def _calc_dias_restantes_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 @st.cache_data(show_spinner=False)
-def _load_tables():
+def _load_tables(row_limit: Optional[int]):
     def _coerce_dias(df: pd.DataFrame) -> pd.DataFrame:
         if "dias_restantes" in df.columns:
             df["dias_restantes"] = df["dias_restantes"].astype("Int64")
         return df
 
-    df1 = pd.read_sql("select * from andamentos order by id desc", engine)
+    def _query(table: str, order_by: str) -> pd.DataFrame:
+        sql = f"select * from {table} order by {order_by} desc"
+        if row_limit is not None:
+            sql += f" limit {row_limit}"
+        return pd.read_sql(sql, engine)
+
+    df1 = _query("andamentos", "id")
     df1 = _calc_dias_restantes_df(df1)
     df1 = _coerce_dias(df1)
 
-    df2 = pd.read_sql("select * from publicacoes order by id desc", engine)
+    df2 = _query("publicacoes", "id")
     df2 = _calc_dias_restantes_df(df2)
     df2 = _coerce_dias(df2)
 
-    df_fin = pd.read_sql("select * from financeiro order by id desc", engine)
+    df_fin = _query("financeiro", "id")
     df_fin = _calc_dias_restantes_df(df_fin)
     df_fin = _coerce_dias(df_fin)
 
-    df3 = pd.read_sql("select * from agenda order by created_at desc", engine)
+    df3 = _query("agenda", "created_at")
 
     try:
-        df4 = pd.read_sql("select * from concluidas order by created_at desc", engine)
+        df4 = _query("concluidas", "created_at")
         df4 = _calc_dias_restantes_df(df4)
         df4 = _coerce_dias(df4)
     except ProgrammingError:
-        df4 = pd.read_sql("select * from concluidas order by id desc", engine)
+        df4 = _query("concluidas", "id")
         df4 = _calc_dias_restantes_df(df4)
         df4 = _coerce_dias(df4)
     return df1, df2, df_fin, df3, df4
@@ -189,6 +195,15 @@ if "show_settings" not in st.session_state:
     st.session_state["show_settings"] = False
 if "filter_date" not in st.session_state:
     st.session_state["filter_date"] = date(2025, 8, 1)
+if "load_limit" not in st.session_state:
+    st.session_state["load_limit"] = 100
+
+limit_options = {
+    "100": 100,
+    "500": 500,
+    "1000": 1000,
+    "Todos": None,
+}
 
 menu_col, title_col = st.columns([0.1, 0.9])
 with menu_col:
@@ -203,6 +218,17 @@ if "__last_msg" in st.session_state:
 if st.session_state.get("show_settings"):
     with st.sidebar:
         st.header("Configurações")
+        current_limit = next(
+            (k for k, v in limit_options.items() if v == st.session_state.get("load_limit")),
+            "100",
+        )
+        selected_limit = st.selectbox(
+            "Quantidade de itens por tabela",
+            options=list(limit_options.keys()),
+            index=list(limit_options.keys()).index(current_limit),
+            help="Define quantos itens mais recentes serão carregados de cada tabela.",
+        )
+        st.session_state["load_limit"] = limit_options[selected_limit]
         filtro_data = st.date_input(
             "Mostrar dados a partir de",
             value=st.session_state.get("filter_date"),
@@ -281,9 +307,14 @@ if 'buscar' in locals() and buscar:
     except Exception as e:
         st.exception(e)
 
-if refresh or "dfs_forms" not in st.session_state:
+if (
+    refresh
+    or "dfs_forms" not in st.session_state
+    or st.session_state.get("loaded_limit") != st.session_state.get("load_limit")
+):
     _load_tables.clear()
-    st.session_state["dfs_forms"] = _load_tables()
+    st.session_state["dfs_forms"] = _load_tables(st.session_state.get("load_limit"))
+    st.session_state["loaded_limit"] = st.session_state.get("load_limit")
 
 df1, df2, df_fin, df3, df4 = st.session_state["dfs_forms"]
 
