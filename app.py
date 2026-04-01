@@ -13,7 +13,6 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import text, inspect
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import ProgrammingError
 from datetime import timezone, timedelta, datetime, date
 import unicodedata
 
@@ -143,12 +142,21 @@ def _calc_dias_restantes_df(df: pd.DataFrame) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=False)
 def _load_tables(row_limit: Optional[int]):
+    inspector = inspect(engine)
+
     def _coerce_dias(df: pd.DataFrame) -> pd.DataFrame:
         if "dias_restantes" in df.columns:
             df["dias_restantes"] = df["dias_restantes"].astype("Int64")
         return df
 
     def _query(table: str, order_by: str) -> pd.DataFrame:
+        available_columns = {col["name"] for col in inspector.get_columns(table)}
+        if order_by not in available_columns:
+            if "id" in available_columns:
+                order_by = "id"
+            else:
+                order_by = next(iter(available_columns))
+
         sql = f"select * from {table} order by {order_by} desc"
         if row_limit is not None:
             sql += f" limit {row_limit}"
@@ -168,14 +176,9 @@ def _load_tables(row_limit: Optional[int]):
 
     df3 = _query("agenda", "created_at")
 
-    try:
-        df4 = _query("concluidas", "created_at")
-        df4 = _calc_dias_restantes_df(df4)
-        df4 = _coerce_dias(df4)
-    except ProgrammingError:
-        df4 = _query("concluidas", "id")
-        df4 = _calc_dias_restantes_df(df4)
-        df4 = _coerce_dias(df4)
+    df4 = _query("concluidas", "created_at")
+    df4 = _calc_dias_restantes_df(df4)
+    df4 = _coerce_dias(df4)
     return df1, df2, df_fin, df3, df4
 
 st.set_page_config(page_title="E-mails → Banco (Form Editor estável)", layout="wide")
