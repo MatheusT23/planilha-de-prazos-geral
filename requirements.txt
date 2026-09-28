@@ -1,7 +1,7 @@
 streamlit
 pandas
 sqlalchemy
-psycopg2-binary
+psycopg[binary]
 beautifulsoup4
 openpyxl
 streamlit-aggrid
