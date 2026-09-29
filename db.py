@@ -2,8 +2,12 @@
 # db.py
 # Lê DATABASE_URL de env, st.secrets, ou .env e define modelos.
 import os
+#from sqlalchemy import create_engine, Column, BigInteger, Integer, Text, Date, TIMESTAMP, text
+#from sqlalchemy.orm import declarative_base, sessionmaker
+
 from sqlalchemy import create_engine, Column, BigInteger, Integer, Text, Date, TIMESTAMP, text
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import NullPool
 
 def _get_database_url():
     url = os.environ.get("DATABASE_URL")
